@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+# Node
+node_modules/
+dist/
+# DB / local
+*.sqlite
+*.db
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+# Fichiers bruts lourds (Data Pack) - a deposer sur la plateforme, pas dans git
+data/01_collecte/datapack/
+
+# Data Pack (869 Mo) : reste en local, chacun le telecharge depuis le Drive du challenge
+DataPack_DCB_2026/
+# Captures d'ecran de travail
+Capture*.png
