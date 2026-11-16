@@ -1,0 +1,5 @@
+source,producteur,publication,annee,fichier,niveau_geographique,periode,utilisation,statut
+Statistiques prescolaire et primaire,DGESS / MENAPLN,Donnees statistiques prescolaire et primaire 2016-2025 (Data Challenge Burkina),2025,data/00_sources/DGESS_prescolaire_primaire_2016_2025.xlsx,13 anciennes regions,2015/16-2024/25,Indicateurs de scolarisation et de decrochage,utilise
+Limites administratives admin1,OCHA / IGB (COD-AB),bfa_admin_boundaries (Data Pack DCB 2026),2026,DataPack_DCB_2026/04_Cartographie_SIG/COD-AB_limites_administratives/bfa_admin_boundaries.geojson.zip,17 nouvelles regions (champ ancienne region),2026,Contours de la carte apres fusion 17 -> 13,utilise
+Personnes deplacees internes et incidents,CONASUR / OCHA,pdi-gcorr-burkinafaso-may2025 (Data Pack DCB 2026),2025,DataPack_DCB_2026/data/03_Conditions_de_Vie_et_Emploi/PDI_CONASUR/,a verifier,2025,Facteur de risque securitaire,a evaluer (Membre 2)
+Population,INSD,RGPH 2019 et projections (Data Pack DCB 2026),2019,DataPack_DCB_2026/,a verifier,2019-,Denominateurs des taux,a evaluer (Membre 2)
