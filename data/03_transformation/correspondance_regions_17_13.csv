@@ -1,0 +1,18 @@
+region_code,region_nom,pcode_ancien,nouvelle_region,pcode_nouveau
+BOUCLE-DU-MOUHOUN,Boucle du Mouhoun,BF46,Bankui,BF62
+BOUCLE-DU-MOUHOUN,Boucle du Mouhoun,BF46,Sourou,BF61
+CASCADES,Cascades,BF47,Tannounyan,BF47
+CENTRE,Centre,BF13,Kadiogo,BF13
+CENTRE-EST,Centre-Est,BF48,Nakambe,BF48
+CENTRE-NORD,Centre-Nord,BF49,Koulse,BF49
+CENTRE-OUEST,Centre-Ouest,BF50,Nando,BF50
+CENTRE-SUD,Centre-Sud,BF51,Nazinon,BF51
+EST,Est,BF52,Goulmou,BF63
+EST,Est,BF52,Sirba,BF58
+EST,Est,BF52,Tapoa,BF60
+HAUTS-BASSINS,Hauts-Bassins,BF53,Guiriko,BF53
+NORD,Nord,BF54,Yaadga,BF54
+PLATEAU-CENTRAL,Plateau-Central,BF55,Oubri,BF55
+SAHEL,Sahel,BF56,Liptako,BF64
+SAHEL,Sahel,BF56,Soum,BF59
+SUD-OUEST,Sud-Ouest,BF57,Djoro,BF57

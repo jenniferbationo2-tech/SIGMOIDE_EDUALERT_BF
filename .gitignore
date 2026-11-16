@@ -22,3 +22,6 @@ data/01_collecte/datapack/
 DataPack_DCB_2026/
 # Captures d'ecran de travail
 Capture*.png
+
+# Fichiers verrous Office
+~$*
