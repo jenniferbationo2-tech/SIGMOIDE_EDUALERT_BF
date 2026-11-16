@@ -6,11 +6,12 @@ Documentation interactive :  http://localhost:8000/docs
 import json
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import GEOJSON_REGIONS, ORIGINES_FRONTEND
 from .db import lignes
+from .fiche_pdf import generer_fiche
 
 app = FastAPI(
     title="EduAlert BF",
@@ -99,8 +100,8 @@ def risque(annee: int = Query(..., description="Ex. 2025, ou 2026 pour la previs
 
 RECOMMANDATIONS = {
     "Critique": ["Renforcer les cantines scolaires et kits scolaires",
-                 "Suivi rapproche des ecoles fermees ou delocalisees (zones a fort deplacement)",
-                 "Deployer des enseignants et dispositifs d'education en situation d'urgence"],
+                 "Suivi rapproché des écoles fermées ou délocalisées (zones à fort déplacement)",
+                 "Déployer des enseignants et dispositifs d'éducation en situation d'urgence"],
     "Modere": ["Campagnes de sensibilisation des parents (scolarisation des filles)",
                "Suivi trimestriel des effectifs par la DPEPS"],
     "Faible": ["Maintenir le suivi annuel des indicateurs"],
@@ -127,3 +128,15 @@ def fiche_region(code: str):
         "indicateurs": recents,
         "recommandations": RECOMMANDATIONS.get(actuel["niveau"], []) if actuel else [],
     }
+
+
+@app.get("/regions/{code}/fiche.pdf", tags=["Carte"], response_class=Response,
+         responses={200: {"content": {"application/pdf": {}}}})
+def fiche_region_pdf(code: str):
+    """Fiche d'une page a telecharger pour le directeur regional (meme contenu que /fiche)."""
+    fiche = fiche_region(code)
+    source = lignes("SELECT valeur FROM meta WHERE cle = 'source_risque'")
+    pdf = generer_fiche(fiche, source[0]["valeur"] if source else "FICTIF")
+    nom = f"EduAlertBF_fiche_{fiche['region_code']}.pdf"
+    return Response(pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{nom}"'})

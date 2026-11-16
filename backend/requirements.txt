@@ -2,3 +2,4 @@ fastapi
 uvicorn
 pandas
 shapely
+fpdf2
