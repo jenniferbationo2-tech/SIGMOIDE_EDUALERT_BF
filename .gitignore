@@ -25,3 +25,6 @@ Capture*.png
 
 # Fichiers verrous Office
 ~$*
+
+# Dossier de preparation des depots (regenere par pipeline/preparer_depots.py)
+depots/
