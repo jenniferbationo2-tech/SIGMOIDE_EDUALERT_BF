@@ -20,20 +20,25 @@ docs/        documentation, dictionnaire des variables, journal de nettoyage
 
 ## Version en ligne
 
-**Adresse : `[à compléter après la création du service Render]`**
+**Application : https://edualert-bf.vercel.app/app/** — état du service :
+https://edualert-bf.vercel.app/sante — documentation de l'API :
+https://edualert-bf.vercel.app/docs
 
-> **Première ouverture lente (environ 30 s), service gratuit en veille.** L'offre
-> gratuite de Render met l'instance en sommeil après une période sans visite : la
-> première requête la réveille et met environ 30 secondes à répondre. Les suivantes
-> sont immédiates. Ce n'est pas une panne — laissez la page charger.
+La version en ligne est un service Vercel (région Paris), sans mise en veille :
+la page répond du premier coup. Elle est assemblée par
+`deploiement/vercel/preparer.sh` puis publiée par `deploiement/vercel/deployer.sh`.
+Seul le strict nécessaire est embarqué : le code de l'API, la base SQLite
+préconstruite, les trois fichiers de données lus à l'exécution et le front
+statique. Le pipeline (pandas, scikit-learn) ne tourne pas sur Vercel — il
+dépasse la taille maximale d'une fonction — la base est donc construite avant
+l'envoi.
 
-La mise en ligne est décrite par `render.yaml`, à la racine du dépôt : service web
+Une seconde cible reste décrite par `render.yaml`, à la racine : service web
 Python, construction par `pip install -r requirements.txt && python -m app.charger`,
-démarrage par `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. La base SQLite n'est
-pas versionnée : elle est reconstruite à chaque déploiement depuis les CSV du dépôt.
+démarrage par `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. L'offre gratuite
+de Render met l'instance en veille (première ouverture lente, environ 30 s) ; elle
+n'est pas utilisée pour la version en ligne actuelle.
 
-Une fois le service en ligne, trois adresses à vérifier :
-`/app/` (la carte), `/sante` (état du service) et `/docs` (documentation de l'API).
 
 ## Reproduction
 

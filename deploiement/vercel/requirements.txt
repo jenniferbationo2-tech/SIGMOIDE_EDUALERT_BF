@@ -1,0 +1,7 @@
+# Dependances a l'EXECUTION sur Vercel (runtime du service web).
+#
+# Le pipeline (pandas, shapely, scikit-learn, openpyxl) ne tourne PAS ici :
+# la base SQLite est construite avant l'envoi, par preparer.sh. L'installer
+# sur Vercel depasserait la limite de taille d'une fonction (250 Mo).
+fastapi>=0.115,<1
+fpdf2>=2.7,<3
