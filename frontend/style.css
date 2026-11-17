@@ -773,7 +773,7 @@ a { color: var(--vert-moyen); }
   /* Tout ce qui ne sert qu'a naviguer disparait. */
   .bande-nationale, .aide, .barre-outils, .chiffres, .glossaire,
   .colonne-carte, .bouton-retour, .actions-fiche, .etat-chargement,
-  .choix-region, .annees { display: none !important; }
+  .choix-region, .annees, .consigne-ecran { display: none !important; }
 
   .entete {
     background: #FFF !important;
