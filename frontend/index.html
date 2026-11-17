@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EduAlert BF – Risque de décrochage scolaire au primaire, par région</title>
+  <meta name="description" content="Cartographie et anticipation du risque de décrochage scolaire au primaire dans les 13 régions du Burkina Faso (données DGESS/MENAPLN 2016-2025).">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23FAFAF8'/%3E%3Cpath d='M4 22h5v-7H4zM13 22h5V9h-5zM22 22h5V13h-5z' fill='%2335506B'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="vendor/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="application">
+
+  <!-- Bandeau d'alerte : uniquement si l'API signale des donnees fictives -->
+  <div v-if="donneesFictives" class="bandeau-fictif" role="alert">
+    <strong>Données fictives</strong> — cette démonstration n'utilise pas les
+    données réelles. Ne pas diffuser.
+  </div>
+
+  <header class="entete">
+    <div class="entete-titre">
+      <h1>EduAlert BF</h1>
+      <p class="sous-titre">Risque de décrochage scolaire au primaire, par région</p>
+    </div>
+    <div class="entete-badge">
+      <span class="badge" :class="'badge--' + (sante.source_risque === 'reel' ? 'reel' : 'fictif')">
+        {{ sante.source_risque === 'reel' ? 'Données réelles' : 'Données fictives' }}
+      </span>
+      <span class="badge-source">DGESS / MENAPLN · 2016-2025</span>
+    </div>
+  </header>
+
+  <p v-if="erreur" class="message-erreur" role="alert">
+    {{ erreur }}
+    <button type="button" class="lien-bouton" @click="chargerTout">Réessayer</button>
+  </p>
+
+  <main class="disposition" v-if="!erreur">
+
+    <!-- ===================== Colonne carte ===================== -->
+    <section class="colonne-carte" aria-label="Carte du risque par région">
+
+      <div class="barre-annees">
+        <label for="curseur-annee" class="etiquette-annee">Année</label>
+        <input id="curseur-annee" type="range" class="curseur"
+               :min="anneeMin" :max="anneeMax" step="1"
+               v-model.number="annee"
+               :aria-label="'Choisir l\'année affichée, entre ' + anneeMin + ' et ' + anneeMax"
+               :aria-valuetext="annee + (estPrevision ? ' (prévision)' : ' (observé)')">
+        <output class="valeur-annee" :class="{ 'valeur-annee--prevision': estPrevision }">
+          {{ annee }}<span v-if="estPrevision" class="etiquette-prevision">prévision</span>
+        </output>
+      </div>
+
+      <p v-if="estPrevision" class="mention-prevision">
+        Prévision du modèle — contours en pointillés sur la carte.
+      </p>
+
+      <div class="cadre-carte">
+        <div id="carte" role="application"
+             aria-label="Carte des 13 régions colorées selon le niveau de risque"></div>
+        <p v-if="chargement" class="etat-chargement">Chargement des données…</p>
+      </div>
+
+      <div class="legende">
+        <h2 class="titre-legende">Niveau de risque</h2>
+        <ul class="liste-legende">
+          <li><span class="puce" style="background:#4C9A72"></span>Faible <span class="seuil">&lt; 33</span></li>
+          <li><span class="puce" style="background:#E0A43A"></span>Modéré <span class="seuil">33 – 66</span></li>
+          <li><span class="puce" style="background:#C2412D"></span>Critique <span class="seuil">≥ 66</span></li>
+        </ul>
+        <p class="note-legende">
+          Indice composite de déperdition scolaire (0 à 100). Ce n'est pas un taux
+          d'abandon mesuré.
+        </p>
+      </div>
+
+      <!-- Encadre fiabilite -->
+      <div class="encadre-fiabilite" v-if="modele.modele_retenu">
+        <h2 class="titre-encadre">Fiabilité de la prévision</h2>
+        <p>{{ phraseFiabilite }}</p>
+      </div>
+    </section>
+
+    <!-- ===================== Colonne panneau ===================== -->
+    <section class="colonne-panneau">
+
+      <!-- Classement -->
+      <div class="bloc" v-if="!regionChoisie">
+        <h2 class="titre-bloc">Classement {{ annee }}</h2>
+        <p class="aide-bloc">
+          Du plus au moins à risque. Cliquez sur une région pour ouvrir sa fiche.
+        </p>
+        <table class="tableau-classement">
+          <caption class="hors-ecran">Classement des régions par score de risque</caption>
+          <thead>
+            <tr>
+              <th scope="col" class="col-rang">#</th>
+              <th scope="col">Région</th>
+              <th scope="col" class="col-nombre">Score</th>
+              <th scope="col" v-if="estPrevision" class="col-nombre">Intervalle</th>
+              <th scope="col">Principal facteur</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(ligne, index) in classement" :key="ligne.region_code"
+                tabindex="0" class="ligne-cliquable"
+                :class="{ 'ligne-seuil': estPrevision && procheDuSeuil(ligne.region_code) }"
+                @click="ouvrirFiche(ligne.region_code)"
+                @keydown.enter="ouvrirFiche(ligne.region_code)"
+                @keydown.space.prevent="ouvrirFiche(ligne.region_code)">
+              <td class="col-rang">{{ index + 1 }}</td>
+              <td>
+                {{ ligne.region_nom }}
+                <span class="marque-seuil" v-if="estPrevision && procheDuSeuil(ligne.region_code)"
+                      title="L'intervalle probable chevauche le seuil critique de 66">
+                  proche du seuil
+                </span>
+              </td>
+              <td class="col-nombre">
+                <span class="pastille" :class="'pastille--' + classeNiveau(ligne.niveau)">
+                  {{ nombreFr(ligne.score, 1) }}
+                </span>
+              </td>
+              <td class="col-nombre petit" v-if="estPrevision">
+                <template v-if="incertitudeDe(ligne.region_code)">
+                  {{ nombreFr(incertitudeDe(ligne.region_code).score_bas, 1) }} –
+                  {{ nombreFr(incertitudeDe(ligne.region_code).score_haut, 1) }}
+                  <br>
+                  <span class="proba">{{ nombreFr(incertitudeDe(ligne.region_code).proba_critique * 100, 0) }}&nbsp;% critique</span>
+                </template>
+                <template v-else>—</template>
+              </td>
+              <td class="petit">{{ libelleFacteur(premierFacteur(ligne.facteurs)) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Fiche region -->
+      <div class="bloc" v-if="regionChoisie">
+        <button type="button" class="bouton-retour" @click="fermerFiche">
+          ← Retour au classement
+        </button>
+
+        <template v-if="fiche">
+          <h2 class="titre-bloc">{{ fiche.region_nom }}</h2>
+
+          <div class="entete-score">
+            <div class="score-grand" :class="'texte--' + classeNiveau(ficheNiveau)">
+              {{ nombreFr(ficheScore, 1) }}<span class="sur-cent">/100</span>
+            </div>
+            <div class="bloc-niveau">
+              <span class="pastille pastille--grande"
+                    :class="'pastille--' + classeNiveau(ficheNiveau)">
+                {{ libelleNiveau(ficheNiveau) }}
+              </span>
+              <p class="annee-score">
+                Situation la plus récente : {{ fiche.risque_actuel.annee }}
+                <template v-if="fiche.risque_actuel.est_prevision"> · prévision du modèle</template>
+                <template v-else> · observé</template>
+              </p>
+            </div>
+          </div>
+
+          <p class="ligne-annee-choisie" v-if="anneeFicheDifferente">
+            Année affichée sur la carte : <strong>{{ pointAnneeChoisie.annee }}</strong> —
+            score {{ nombreFr(pointAnneeChoisie.score, 1) }}
+            ({{ libelleNiveau(pointAnneeChoisie.niveau) }}).
+            La fiche ci-dessous décrit l'état le plus récent de la région.
+          </p>
+
+          <p v-if="fiche.incertitude_prevision" class="ligne-incertitude">
+            Intervalle probable :
+            <strong>{{ nombreFr(fiche.incertitude_prevision.score_bas, 1) }}
+            à {{ nombreFr(fiche.incertitude_prevision.score_haut, 1) }}</strong>
+            · probabilité d'être critique :
+            <strong>{{ nombreFr(fiche.incertitude_prevision.proba_critique * 100, 0) }}&nbsp;%</strong>
+          </p>
+
+          <h3 class="titre-section">Facteurs principaux</h3>
+          <ul class="liste-facteurs">
+            <li v-for="code in facteursFiche" :key="code">{{ libelleFacteur(code) }}</li>
+          </ul>
+
+          <h3 class="titre-section">Évolution du score</h3>
+          <!-- Graphique en barres dessine a la main, sans bibliotheque -->
+          <svg class="graphique" :viewBox="'0 0 ' + largeurSvg + ' 150'"
+               role="img" :aria-label="descriptionGraphique">
+            <line :x1="margeSvg" y1="120" :x2="largeurSvg - 6" y2="120"
+                  stroke="#C9CFD6" stroke-width="1"></line>
+            <line :x1="margeSvg" :y1="120 - 0.66 * 100" :x2="largeurSvg - 6"
+                  :y2="120 - 0.66 * 100" stroke="#C2412D" stroke-width="1"
+                  stroke-dasharray="3 3" opacity="0.5"></line>
+            <g v-for="(point, index) in fiche.historique_risque" :key="point.annee">
+              <rect v-if="point.annee === annee" :x="margeSvg + index * pasSvg"
+                    y="6" :width="pasSvg - 1" height="116" fill="#EDF1F5"></rect>
+              <rect :x="margeSvg + index * pasSvg + 2"
+                    :y="120 - point.score"
+                    :width="pasSvg - 5"
+                    :height="point.score"
+                    :fill="point.est_prevision ? 'none' : couleurNiveau(point.niveau)"
+                    :stroke="couleurNiveau(point.niveau)"
+                    :stroke-dasharray="point.est_prevision ? '3 2' : null"
+                    :stroke-width="point.annee === annee ? 2.8 : 1.5"></rect>
+              <text :x="margeSvg + index * pasSvg + (pasSvg - 1) / 2"
+                    :y="120 - point.score - 4" class="valeur-barre"
+                    text-anchor="middle">{{ Math.round(point.score) }}</text>
+              <text :x="margeSvg + index * pasSvg + (pasSvg - 1) / 2" y="133"
+                    class="annee-barre" :class="{ 'annee-barre--choisie': point.annee === annee }"
+                    text-anchor="middle">
+                {{ String(point.annee).slice(2) }}
+              </text>
+            </g>
+            <text :x="margeSvg - 4" y="123" class="repere-axe" text-anchor="end">0</text>
+            <text :x="margeSvg - 4" :y="120 - 66 + 3" class="repere-axe"
+                  text-anchor="end">66</text>
+          </svg>
+          <p class="note-graphique">
+            Barre pleine : observé. Contour en pointillés : prévision.
+            Ligne rouge : seuil critique (66).
+          </p>
+
+          <h3 class="titre-section">Indicateurs clés ({{ fiche.annee_indicateurs }})</h3>
+          <table class="tableau-indicateurs">
+            <thead>
+              <tr>
+                <th scope="col">Indicateur</th>
+                <th scope="col" class="col-nombre">Garçons</th>
+                <th scope="col" class="col-nombre">Filles</th>
+                <th scope="col" class="col-nombre">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="ligne in indicateursCles" :key="ligne.code">
+                <td>{{ ligne.libelle }}</td>
+                <td class="col-nombre">{{ ligne.G }}</td>
+                <td class="col-nombre">{{ ligne.F }}</td>
+                <td class="col-nombre">{{ ligne.T }}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3 class="titre-section">Actions recommandées</h3>
+          <ul class="liste-actions">
+            <li v-for="action in fiche.recommandations" :key="action">{{ action }}</li>
+          </ul>
+
+          <template v-if="fiche.actions_par_facteur && fiche.actions_par_facteur.length">
+            <h3 class="titre-section">Pistes selon les facteurs de la région</h3>
+            <p class="aide-bloc">Pistes générales, à adapter par les services régionaux.</p>
+            <div class="bloc-facteur" v-for="bloc in fiche.actions_par_facteur"
+                 :key="bloc.facteur">
+              <h4 class="titre-facteur">{{ bloc.libelle }}</h4>
+              <ul class="liste-actions">
+                <li v-for="action in bloc.actions" :key="action">{{ action }}</li>
+              </ul>
+            </div>
+          </template>
+
+          <a class="bouton-pdf" :href="urlFichePdf" target="_blank" rel="noopener">
+            Télécharger la fiche du directeur régional (PDF)
+          </a>
+        </template>
+        <p v-else class="etat-chargement">Chargement de la fiche…</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pied">
+    <p>
+      <strong>Sources</strong> : DGESS / MENAPLN, statistiques du préscolaire et du
+      primaire 2016-2025 ; OCHA / IGB (COD-AB) pour les limites administratives.
+      Année = année de fin d'année scolaire (2024/25 → 2025).
+    </p>
+    <p>
+      Équipe AB7C-938F-79BB · Data Challenge Burkina 2026, Édition Éducation ·
+      Défi 1 : risque de décrochage scolaire par région.
+    </p>
+  </footer>
+</div>
+
+<script src="vendor/vue.global.prod.js"></script>
+<script src="vendor/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
