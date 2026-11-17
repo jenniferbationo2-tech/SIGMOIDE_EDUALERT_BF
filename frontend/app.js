@@ -222,8 +222,14 @@ createApp({
       return LIBELLES_FACTEURS[code] || code.replace(/_/g, ' ');
     },
 
-    premierFacteur(facteurs) {
-      return (facteurs || '').split(';')[0] || '';
+    // Deux premiers facteurs : avec un seul, la colonne affichait presque
+    // toujours « Ecart entre admission et achevement » et ne distinguait
+    // plus les regions. Le second facteur est celui qui separe le Sahel
+    // (fermetures d'ecoles) du Centre-Nord (recul des effectifs).
+    premiersFacteurs(facteurs) {
+      const codes = (facteurs || '').split(';').filter(Boolean).slice(0, 2);
+      if (!codes.length) return '—';
+      return codes.map((code) => this.libelleFacteur(code)).join(', ');
     },
 
     incertitudeDe(code) { return this.incertitudes[code] || null; },

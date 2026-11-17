@@ -26,6 +26,9 @@ SOURCE = RACINE / "docs" / "documentation_EduAlertBF.md"
 SORTIE = RACINE / "docs" / "documentation_EduAlertBF.pdf"
 HTML = RACINE / "docs" / ".documentation.html"
 
+MAX_PAGES = 15          # plafond du reglement
+MIN_CARACTERES = 300    # sous ce seuil, une page sans image est quasi vide
+
 FEUILLE = """
 @page { size: A4; margin: 18mm 16mm 16mm 16mm; }
 body { font-family: "DejaVu Sans", sans-serif; font-size: 10pt; line-height: 1.5;
@@ -41,8 +44,16 @@ table { border-collapse: collapse; width: 100%; margin: 8pt 0 11pt;
 th, td { border: 1px solid #D4D8DC; padding: 4pt 6pt; text-align: left;
          vertical-align: top; }
 th { background: #F2F4F6; font-weight: bold; }
-img { max-width: 100%; height: auto; display: block; margin: 9pt auto;
-      page-break-inside: avoid; border: 1px solid #E8EBEE; }
+img { display: block; margin: 9pt auto; page-break-inside: avoid;
+      /* Contraintes du reglement : au plus 75 % de la largeur utile et 9 cm
+         de haut. `object-fit: contain` garde les proportions quand la hauteur
+         est la contrainte active, sinon l'image serait etiree. */
+      max-width: 75%; max-height: 9cm; width: auto; height: auto;
+      object-fit: contain; border: 1px solid #E8EBEE; }
+/* Aucun saut de page force avant une image, et pas d'image orpheline en
+   haut de page : elle reste collee au paragraphe qui l'introduit. */
+p + img, p + p > img { page-break-before: avoid; }
+h1, h2, h3 { page-break-before: auto; }
 blockquote { margin: 9pt 0; padding: 7pt 11pt; border-left: 3px solid #C2412D;
              background: #FAF6F5; }
 blockquote p { margin: 0; }
@@ -134,13 +145,41 @@ def main() -> int:
         return 1
 
     octets = SORTIE.stat().st_size
-    pages = SORTIE.read_bytes().count(b"/Type /Page\n") or \
-        SORTIE.read_bytes().count(b"/Type/Page")
-    print(f"ok  {SORTIE.relative_to(RACINE)}  {octets // 1024} Ko  "
-          f"{images} images incorporees  ~{pages} pages")
-    if octets < 200_000:
-        print("ATTENTION : taille faible pour un document illustre.")
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        print("ECHEC : pypdf manquant, impossible de verifier la pagination.")
         return 1
+
+    lecture = PdfReader(SORTIE)
+    pages = len(lecture.pages)
+    print(f"ok  {SORTIE.relative_to(RACINE)}  {octets // 1024} Ko  "
+          f"{images} images incorporees  {pages} pages")
+
+    # --- Controle de pagination ---
+    # Une page presque vide trahit un saut force ou une image orpheline. On
+    # compte le texte ET les images : une page d'illustration est legitime.
+    echecs = []
+    print("\n  page  caracteres  images")
+    for numero, page in enumerate(lecture.pages, start=1):
+        texte = (page.extract_text() or "").strip()
+        nb_images = len(getattr(page, "images", []) or [])
+        marque = ""
+        if len(texte) < MIN_CARACTERES and nb_images == 0:
+            marque = "  <- PAGE PRESQUE VIDE"
+            echecs.append(numero)
+        print(f"  {numero:>4}  {len(texte):>10}  {nb_images:>6}{marque}")
+
+    if pages > MAX_PAGES:
+        print(f"\nECHEC : {pages} pages, maximum {MAX_PAGES}.")
+        return 1
+    if echecs:
+        print(f"\nECHEC : page(s) presque vide(s) sans image : {echecs}")
+        return 1
+    if octets < 200_000:
+        print("\nECHEC : taille faible pour un document illustre.")
+        return 1
+    print(f"\n{pages} pages (max {MAX_PAGES}), aucune page presque vide.")
     return 0
 
 

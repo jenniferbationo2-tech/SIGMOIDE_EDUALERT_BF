@@ -46,12 +46,12 @@ le dire explicitement plutôt que de laisser croire qu'elles alimentent le score
 
 | Source écartée | Pourquoi |
 |---|---|
-| Personnes déplacées internes (CONASUR / OCHA) | Publiée selon le découpage en 17 régions et à des dates qui ne coïncident pas avec l'année scolaire. La rattacher aux 13 régions aurait demandé une clé de répartition que nous n'avons pas pu vérifier. L'insécurité est donc captée **indirectement**, par les fermetures d'écoles et le recul des effectifs, qui sont mesurés dans le fichier DGESS lui-même |
-| Population par région (INSD, RGPH 2019) | Nos indicateurs sont déjà des taux calculés par la DGESS sur ses propres dénominateurs. Introduire une seconde base de population aurait créé deux taux différents pour la même réalité |
+| Personnes déplacées internes (CONASUR / OCHA) | Publiée selon les 17 régions et à des dates qui ne coïncident pas avec l'année scolaire ; la rattacher aux 13 régions aurait demandé une clé de répartition invérifiable. L'insécurité est captée **indirectement**, par les fermetures d'écoles et le recul des effectifs |
+| Population par région (INSD, RGPH 2019) | Nos indicateurs sont déjà des taux calculés par la DGESS sur ses propres dénominateurs : une seconde base aurait créé deux taux pour la même réalité |
 
 Le score repose donc sur **une seule source statistique**, le fichier DGESS, plus les
-contours administratifs pour l'affichage. C'est une limite assumée, et c'est aussi ce
-qui rend chaque chiffre traçable jusqu'à sa cellule d'origine.
+contours pour l'affichage. Limite assumée, qui rend chaque chiffre traçable jusqu'à sa
+cellule d'origine.
 
 L'inventaire complet est déposé : `AB7C-938F-79BB_01-collecte_D1_architect_inventaire-sources_v1.csv`.
 
@@ -128,24 +128,20 @@ Il est **relançable sans aucune action manuelle** et écrit son propre journal,
 | Noms de régions écrits de trois façons différentes selon l'onglet | `BOUCLE DU MOUHOUN`, `HAUT-BASSINS` et `PLATEAU CENTRAL` ramenés au code officiel |
 | Année noyée dans un en-tête contenant du texte étranger aux données | 37 cellules sur les 14 onglets. Seule l'année est extraite par expression régulière ; le texte n'est ni interprété, ni recopié dans un livrable |
 
-**Deux règles que nous nous sommes interdites d'enfreindre :**
-
-- **une cellule vide reste vide.** Aucune valeur manquante n'a été remplacée par zéro ni
-  par une moyenne : un zéro inventé se propage ensuite dans un taux et dans un score.
-  Le journal l'atteste : 0 valeur imputée ;
-- **aucun arrondi à l'export du nettoyage.** Les taux sont écrits en pleine précision.
-  Les IPS étant des rapports de taux, arrondir les taux à deux décimales déplacerait la
-  quatrième décimale du rapport. L'arrondi n'est fait qu'à l'affichage.
+**Deux règles tenues sans exception :** une **cellule vide reste vide** (aucune valeur
+manquante remplacée par zéro ou par une moyenne — un zéro inventé se propage dans un taux
+puis dans un score ; le journal atteste 0 valeur imputée) ; et **aucun arrondi à l'export**
+(les IPS étant des rapports de taux, arrondir les taux à deux décimales déplacerait la
+quatrième décimale du rapport — l'arrondi n'est fait qu'à l'affichage).
 
 **Vérification des totaux (règle d'or du challenge).** Les lignes nationales mises de
-côté servent de témoin indépendant : la somme des 13 régions est comparée au total
-publié par la DGESS pour chaque variable et chaque année.
+côté servent de témoin indépendant : la somme des 13 régions est comparée au total publié
+par la DGESS, pour chaque variable et chaque année.
 
 > **218 contrôles exécutés, 0 hors tolérance.**
 
 Sorties : `dgess_regional_long.csv` (3 120 lignes), `dgess_national_long.csv` (840 lignes)
-et `dgess_totaux-nationaux.csv` (240 lignes), pour 10 variables régionales sur 2016-2025,
-avec 13 régions distinctes dans chacun des 8 onglets régionaux.
+et `dgess_totaux-nationaux.csv` (240 lignes), 10 variables régionales sur 2016-2025.
 
 ## 3.4 Variables construites
 
@@ -163,15 +159,14 @@ colonnes nettoyées :
 | `variation_effectif_primaire`, `variation_nombre_ecoles`, `variation_taux_achevement` | variation annuelle en % | Conservées pour la lecture, mais **écartées de l'indice** (voir 4.2) |
 
 **Pourquoi le recul depuis le pic plutôt que la variation annuelle.** C'est le choix de
-construction le plus important de tout le projet, et il vient d'une erreur que nous avons
-corrigée. Une première version de l'indice utilisait les variations d'une année sur
-l'autre. Elle faisait **baisser à tort le risque des régions encore dévastées** : en 2025,
-le Sahel regagne des élèves et des écoles, ce qui améliorait son score — alors qu'il lui
-manque toujours **52,8 % de ses élèves** et **82,0 % de ses écoles** par rapport à son
-meilleur niveau. Une reprise sur des ruines reste une situation critique. Les composantes
-mesurent donc ce qui n'a pas été reconstitué. La variante écartée est conservée dans
-l'analyse de sensibilité sous le nom `avec_variations_annuelles` (section 4.2), pour que
-ce choix reste vérifiable et discutable.
+construction le plus important du projet, et il vient d'une erreur repérée à la relecture
+(voir l'annexe). Une première version utilisait les variations d'une année sur l'autre :
+elle faisait **baisser à tort le risque des régions encore dévastées**. En 2025, le Sahel
+regagne des élèves et des écoles, ce qui améliorait son score — alors qu'il lui manque
+toujours **52,8 % de ses élèves** et **82,0 % de ses écoles** par rapport à son meilleur
+niveau. Une reprise sur des ruines reste une situation critique. Les composantes mesurent
+donc ce qui n'a pas été reconstitué ; la variante écartée reste vérifiable dans l'analyse
+de sensibilité sous le nom `avec_variations_annuelles`.
 
 Sortie : `indicateurs.csv`, 4 615 lignes au format long, 20 indicateurs, 13 régions,
 2016-2025.
@@ -194,16 +189,14 @@ eux, sont réellement mesurés.
 
 Cette honnêteté a un coût — on ne peut pas annoncer « X élèves vont décrocher » — et un
 bénéfice : chaque composante du score est une quantité publiée par la DGESS, vérifiable
-ligne à ligne, et aucun chiffre du tableau de bord ne repose sur une estimation
-invérifiable.
+ligne à ligne.
 
-**Un ordre de grandeur de l'enjeu, lui, est mesurable.** À partir des effectifs nationaux
-par niveau (onglet Feuil4), on rapporte l'effectif de CM2 de l'année N+5 à celui du CP1
-de l'année N. Pour la cohorte entrée au CP1 en 2020, ce taux de survie apparent est de
-**55,7 %** : pour la génération entrée en 2016, il était de 74,1 %. L'écart entre filles
-(62,7 %) et garçons (49,2 %) est stable et important. Cet indicateur est *apparent* — il
-mêle abandons, redoublements et migrations, et ne suit pas les élèves un par un — mais il
-situe l'ampleur du phénomène que l'indice cherche à localiser.
+**L'ordre de grandeur de l'enjeu, lui, est mesurable.** En rapportant l'effectif de CM2
+de l'année N+5 à celui du CP1 de l'année N (effectifs nationaux, onglet Feuil4), le taux
+de survie apparent de la cohorte entrée en 2020 est de **55,7 %**, contre 74,1 % pour
+celle de 2016. L'écart filles (62,7 %) / garçons (49,2 %) est stable et important.
+Indicateur *apparent* — il mêle abandons, redoublements et migrations — mais il situe
+l'ampleur du phénomène que l'indice cherche à localiser.
 
 ![Taux de survie apparent du primaire, par sexe](../data/05_interpretation/graphiques/05-survie-cohortes.png)
 
@@ -222,66 +215,54 @@ Six composantes, chacune calculée à partir des variables de la section 3.4 :
 | Faible scolarisation | `100 − taux brut de scolarisation` | 0,10 |
 | Disparité filles / garçons | `|1 − ips_tap|` | 0,10 |
 
-**Normalisation par rang percentile** sur l'ensemble du panel (13 régions × 2017-2025,
-soit 117 observations), et non par écart-type : le choc de 2022/23 produit des valeurs
-extrêmes qui écraseraient toutes les autres sous une normalisation classique. Le rang
-reste lisible et comparable d'une année à l'autre.
+**Normalisation par rang percentile** sur le panel (13 régions × 2017-2025, soit 117
+observations), et non par écart-type : le choc de 2022/23 produit des valeurs extrêmes
+qui écraseraient toutes les autres. Score = 100 × Σ (poids × percentile), arrondi à une
+décimale. Niveaux : **Faible** < 33, **Modéré** 33 à 66, **Critique** ≥ 66.
 
-Score = 100 × Σ (poids × percentile), arrondi à une décimale.
-Niveaux : **Faible** < 33, **Modéré** 33 à 66, **Critique** ≥ 66.
+**Les facteurs affichés sont filtrés** : une composante n'est citée que si la région est
+**au-dessus de la médiane nationale** sur ce point (percentile ≥ 0,50), trois au maximum.
+Sans ce filtre — c'était le cas d'une première version — une région pouvait se voir
+reprocher une composante où elle figure parmi les meilleures du pays.
 
-**Les facteurs affichés sont filtrés.** Une composante n'est citée comme facteur de
-risque que si son percentile atteint 0,50, c'est-à-dire si la région est **au-dessus de
-la médiane nationale** sur ce point. Sans ce filtre — c'était le cas dans une première
-version — une région pouvait se voir reprocher comme « facteur de risque » une
-composante où elle figure parmi les meilleures du pays. Trois facteurs au maximum,
-classés par contribution.
-
-**L'indice est-il sensible au choix des poids ?** Nous avons recalculé le classement en
-retirant chaque composante une à une, et en passant à des poids égaux. La corrélation de
-rang avec le classement de référence reste **supérieure à 0,90 dans tous les cas**, et
-supérieure à 0,98 pour la plupart : le classement ne dépend pas du détail de la
-pondération. La composante la plus structurante est l'écart admission / achèvement
-(ρ = 0,905 sans elle, 23,1 % des observations changeant de niveau).
+**L'indice est-il sensible au choix des poids ?** Le classement a été recalculé en
+retirant chaque composante une à une, puis à poids égaux : la corrélation de rang reste
+**supérieure à 0,90 dans tous les cas** et au-dessus de 0,98 pour la plupart. La
+composante la plus structurante est l'écart admission / achèvement (ρ = 0,905 sans elle,
+23,1 % des observations changeant de niveau).
 
 ![Sensibilité de l'indice au retrait de chaque composante](../data/05_interpretation/graphiques/06-sensibilite-indice.png)
 
 ### La prévision de l'année suivante
 
-**Protocole de validation, fixé avant de regarder les résultats.** La validation est
-toujours **temporelle** : jamais de mélange aléatoire des années, le modèle ne voit
-jamais le futur. Trois candidats sont comparés — la référence naïve (« score N+1 =
-score N »), une régression Ridge et une forêt aléatoire — sur deux protocoles : un
-découpage fixe (apprentissage ≤ 2022, test 2023-2025) et une **validation glissante en
-trois plis**, où l'on apprend sur tout le passé disponible et prévoit l'année suivante.
-Règle de décision : on retient le modèle à la plus faible erreur moyenne ; si l'avance
-d'un modèle appris est inférieure à 0,3 point de MAE, on garde la référence naïve, plus
-simple.
+**Protocole fixé avant de regarder les résultats.** La validation est **temporelle** :
+jamais de mélange aléatoire, le modèle ne voit jamais le futur. Trois candidats — la
+référence naïve (« score N+1 = score N »), une régression Ridge, une forêt aléatoire —
+sur deux protocoles : découpage fixe (apprentissage ≤ 2022, test 2023-2025) et
+**validation glissante en trois plis**. Règle de décision : la plus faible erreur
+moyenne l'emporte ; si l'avance d'un modèle appris est inférieure à 0,3 point de MAE, on
+garde la référence naïve, plus simple.
 
 **Résultat : aucun modèle appris ne bat la référence naïve**, ni sur un protocole, ni sur
 l'autre.
 
 ![Comparaison des modèles en validation glissante](../data/05_interpretation/graphiques/04-comparaison-modeles.png)
 
-Nous l'écrivons tel quel plutôt que de présenter un modèle plus savant qui serait moins
-juste. Deux raisons, identifiées et vérifiées :
+Le résultat est écrit tel quel plutôt que de présenter un modèle plus savant qui serait
+moins juste. Deux raisons :
 
-1. **Le choc de 2022/23 est un changement de régime.** Les modèles apprennent sur des
-   années où le système se dégrade lentement, puis doivent prévoir l'après-effondrement :
-   les relations apprises ne tiennent plus.
-2. **104 paires année N → score N+1, c'est très peu** pour estimer une relation à neuf
-   variables. Le score d'une région est par ailleurs très stable d'une année à l'autre,
-   ce qui rend la persistance difficile à battre.
+1. **Le choc de 2022/23 est un changement de régime** : les modèles apprennent sur des
+   années de dégradation lente, puis doivent prévoir l'après-effondrement.
+2. **104 paires année N → score N+1, c'est très peu** pour une relation à neuf variables,
+   et le score d'une région est très stable d'une année à l'autre.
 
-L'analyse d'importance des variables confirme le diagnostic : le score de l'année N
-explique à lui seul l'essentiel de la prévision (importance par permutation 10,93 contre
-3,35 pour la variable suivante, le recul des effectifs).
+L'importance des variables confirme le diagnostic : le score de l'année N explique à lui
+seul l'essentiel de la prévision (10,93 par permutation, contre 3,35 pour la suivante).
 
 **Conséquence, dite clairement dans l'interface :** la prévision 2026 reprend le score
-2025 de chaque région. La carte 2026 ne se distingue donc pas de 2025 par ses couleurs,
-mais par ses contours en pointillés, son étiquette « prévision » et l'encadré de
-fiabilité. L'utilisateur n'est jamais laissé croire qu'un modèle a produit un chiffre
-neuf.
+2025. La carte 2026 ne se distingue donc pas par ses couleurs, mais par ses contours en
+pointillés, son étiquette « prévision » et l'encadré de fiabilité : l'utilisateur n'est
+jamais laissé croire qu'un modèle a produit un chiffre neuf.
 
 ## 4.3 Architecture de la solution
 
@@ -298,34 +279,26 @@ OCHA COD-AB ─► fusion 17→13 ─► regions13.geojson ───┘         
 
 | Composant | Choix | Pourquoi |
 |---|---|---|
-| Langage | Python | Même langage pour les données, le modèle et l'API : le modèle s'intègre sans traduction |
-| API | FastAPI | Peu de code, validation automatique des paramètres, **documentation interactive générée** (`/docs`) |
-| Base | SQLite | Un seul fichier, aucune installation de serveur : la solution se relance sur n'importe quel poste. Suffisant pour quelques milliers de lignes |
-| Carte | Leaflet + GeoJSON | Bibliothèque libre, légère, fonctionne sans clé d'accès payante |
+| Langage | Python | Un seul langage des données à l'API : le modèle s'intègre sans traduction |
+| API | FastAPI | Peu de code, validation des paramètres, documentation générée (`/docs`) |
+| Base | SQLite | Un fichier, aucun serveur à installer : relançable sur n'importe quel poste |
+| Carte | Leaflet + GeoJSON | Libre, léger, sans clé d'accès payante |
 | Fiche PDF | fpdf2 | Génération en Python pur, sans logiciel externe |
 
-Nous avons volontairement écarté l'architecture plus lourde envisagée dans la note d'intention (Laravel, MySQL, MongoDB) :
-pour 13 régions et quelques milliers de valeurs, elle ajoutait de l'installation et des risques de panne sans bénéfice.
-**Une solution simple est une solution qu'un service déconcentré peut réellement faire tourner.**
+L'architecture plus lourde envisagée dans la note d'intention (Laravel, MySQL, MongoDB)
+a été écartée : pour 13 régions et quelques milliers de valeurs, elle ajoutait de
+l'installation et des risques de panne sans bénéfice. **Une solution simple est une
+solution qu'un service déconcentré peut réellement faire tourner.**
 
-**Principes de conception :**
+Quatre principes la gouvernent : une **seule porte d'entrée** (la carte et les fiches
+n'ouvrent jamais un fichier, elles interrogent l'API) ; la **reproductibilité** (la base
+est reconstruite à chaque chargement depuis les CSV) ; des **contrôles au chargement**
+(colonnes obligatoires, doublons interdits par clé primaire) ; la **traçabilité**
+(`GET /sante` indique l'origine des données servies, chaque fiche PDF cite ses sources).
 
-- **Une seule porte d'entrée** : la carte et les fiches ne lisent jamais les fichiers, elles interrogent l'API. Changer une source
-  ne casse pas l'interface.
-- **Reproductibilité** : la base est reconstruite entièrement à chaque chargement à partir des CSV ; même entrée → même résultat.
-- **Contrôles au chargement** : colonnes obligatoires vérifiées, doublons interdits par clé primaire.
-- **Traçabilité** : l'API indique l'origine des données servies (`GET /sante`) ; chaque fiche PDF cite ses sources.
-
-**Services de l'API :**
-
-| Service | Rôle pour l'utilisateur |
-|---|---|
-| `GET /risque?annee=` | Couleur de chaque région sur la carte pour l'année choisie |
-| `GET /geo/regions` | Contours des 13 régions |
-| `GET /regions/{code}/fiche` | Détail d'une région : historique du risque, indicateurs, recommandations |
-| `GET /regions/{code}/fiche.pdf` | Fiche d'alerte d'une page à imprimer ou à transmettre |
-| `GET /indicateurs` | Indicateurs filtrables par région, année, sexe |
-| `GET /regions`, `GET /annees`, `GET /sante` | Référentiels et état du service |
+L'API expose les services `GET /risque`, `/geo/regions`, `/regions/{code}/fiche` et
+`/fiche.pdf`, `/indicateurs`, plus les référentiels `/regions`, `/annees` et `/sante`.
+Le détail des paramètres est dans la documentation interactive générée à `/docs`.
 
 # 5. Les résultats
 
@@ -357,7 +330,6 @@ l'**Est** (65,3 → 72,9). Les deux premières ne sont pas les régions auxquell
 spontanément en parlant d'insécurité : c'est précisément le genre de glissement qu'une
 carte rend visible et qu'une lecture d'annuaire laisse passer.
 
-![Carte de la prévision 2026, contours en pointillés](../data/05_interpretation/captures/02-carte-2026-prevision.png)
 
 Sur l'année de prévision, les contours passent en pointillés, le curseur porte une
 étiquette « prévision » et un encadré rappelle la méthode retenue et son erreur moyenne.
@@ -366,7 +338,6 @@ persistance du score.
 
 ## 5.2 Les régions prioritaires
 
-![Classement des régions par score de risque, 2025](../data/05_interpretation/graphiques/01-classement-regions.png)
 
 | Rang | Région | Score | Niveau | Facteurs principaux |
 |---|---|---|---|---|
@@ -386,11 +357,10 @@ persistance du score.
 
 **Les facteurs ne sont pas les mêmes partout, et c'est ce qui rend le classement
 actionnable.** Au Sahel et à l'Est, les fermetures d'écoles dominent : la réponse est
-l'offre scolaire — réouverture, espaces temporaires d'apprentissage, éducation en
-situation d'urgence. Au Centre-Nord et dans la Boucle du Mouhoun, c'est l'écart entre
-admission et achèvement qui pèse le plus : les enfants entrent à l'école mais n'y
-restent pas, et la réponse est la rétention — cantines, kits, suivi de cohorte. Deux
-régions au même niveau n'appellent pas la même décision.
+l'offre scolaire (réouverture, espaces temporaires d'apprentissage). Au Centre-Nord et
+dans la Boucle du Mouhoun, c'est l'écart entre admission et achèvement : les enfants
+entrent mais ne restent pas, et la réponse est la rétention (cantines, kits, suivi de
+cohorte). Deux régions au même niveau n'appellent pas la même décision.
 
 **Le contraste se lit aussi fiche à fiche.** À l'opposé du classement, la région du
 Centre (26,4, niveau Faible) ne présente qu'**un seul** facteur au-dessus de la médiane
@@ -399,13 +369,7 @@ nationale, l'écart admission / achèvement, et son score **a baissé** sur la p
 seules régions dont la situation s'est améliorée : les onze autres se sont dégradées,
 jusqu'à +41,5 points pour la Boucle du Mouhoun.
 
-![Fiche d'une région en niveau Faible (Centre, 2025)](../data/05_interpretation/captures/04-fiche-region-faible.png)
 
-**Les trajectoires comptent autant que le classement.** Le Centre-Nord et la Boucle du
-Mouhoun ne décrochent pas au même moment ni à la même vitesse, et le Centre reste stable
-à bas niveau sur toute la période.
-
-![Trajectoires des régions les plus et les moins exposées](../data/05_interpretation/graphiques/02-trajectoires-regions.png)
 
 ## 5.3 Fiabilité de la prévision
 
@@ -423,8 +387,7 @@ la région dans le bon niveau de risque **4 fois sur 5**. L'erreur n'est pas uni
 dans le temps : elle atteint 8,85 points sur le pli le plus difficile (prévoir 2023,
 juste après le choc) et descend à 3,82 points sur le pli le plus récent (prévoir 2025).
 
-**Sur les erreurs de niveau, le modèle se trompe dans le sens prudent.** Matrice de
-confusion sur la période de test 2023-2025 :
+**Sur les erreurs de niveau, le modèle se trompe dans le sens prudent** (test 2023-2025) :
 
 | | prévu Faible | prévu Modéré | prévu Critique |
 |---|---|---|---|
@@ -432,13 +395,11 @@ confusion sur la période de test 2023-2025 :
 | **réel Modéré** | 3 | 13 | 0 |
 | **réel Critique** | 0 | **4** | 16 |
 
-Les 4 erreurs sur les régions réellement critiques les annoncent en « Modéré » : jamais
-en « Faible ». Une région critique n'est donc jamais présentée comme sans problème — mais
-elle peut être sous-estimée d'un cran, ce qui reste un risque réel pour l'affectation des
-moyens.
-
-**Chaque prévision est accompagnée de sa fourchette**, construite sur l'erreur observée
-en validation, et affichée telle quelle dans l'interface et sur la fiche PDF :
+Les 4 erreurs sur les régions réellement critiques les annoncent en « Modéré », jamais
+en « Faible » : une région critique n'est donc jamais présentée comme sans problème, mais
+elle peut être sous-estimée d'un cran. **Chaque prévision est accompagnée de sa
+fourchette**, construite sur l'erreur observée en validation et affichée telle quelle
+dans l'interface comme sur la fiche PDF :
 
 ![Prévision 2026 et intervalle probable par région](../data/05_interpretation/graphiques/03-prevision-2026-incertitude.png)
 
@@ -456,16 +417,14 @@ Chaque région dispose d'une fiche d'une page, générée à la demande par l'ap
 - des **actions recommandées** adaptées au niveau de risque ;
 - les **sources** et la date de génération.
 
-![Fiche d'une région en niveau Critique (Centre-Nord, 2025)](../data/05_interpretation/captures/03-fiche-region-critique.png)
+![Fiche d'une région en niveau Critique (Centre-Nord, 2025)](../data/05_interpretation/captures/03-fiche-haut-doc.png)
 
 Les 13 fiches PDF sont déposées dans `data/05_interpretation/fiches/`. Elles sont
 regénérables par `python pipeline/exporter_fiches.py`, sans serveur à démarrer.
 
-**L'application fonctionne aussi sur un téléphone**, ce qui compte pour un encadrement
-en déplacement : disposition en colonne unique sous 900 px, aucun débordement horizontal
-mesuré à 390 px de large.
+L'application fonctionne aussi sur téléphone : colonne unique sous 900 px, sans
+débordement horizontal à 390 px de large.
 
-![Application sur écran étroit (390 px)](../data/05_interpretation/captures/05-ecran-etroit-390.png)
 
 # 6. La réponse au défi
 
@@ -478,134 +437,102 @@ mesuré à 390 px de large.
 | Chaque direction fait ses propres calculs | Un indicateur commun, calculé de la même manière pour toutes les régions |
 | Rapport à rédiger pour alerter | Fiche d'une page prête à transmettre |
 
-**Exemple d'usage :** en juillet, à la publication des statistiques, la DGESS met à jour les données et relance la chaîne
-(une commande). Le directeur régional ouvre la carte, voit sa région passer en « Critique », télécharge sa fiche et l'utilise
-pour justifier une demande de renforcement des cantines ou d'enseignants avant la rentrée d'octobre.
+**Exemple d'usage :** en juillet, la DGESS met à jour les données et relance la chaîne en
+une commande ; le directeur régional ouvre la carte, voit sa région passer en
+« Critique » et transmet sa fiche avant la rentrée d'octobre.
 
 ## 6.2 Limites
 
-- Analyse **régionale** : une région « modérée » peut cacher des provinces ou des communes critiques.
-- Indicateurs **indirects** du décrochage, faute de taux d'abandon publié par région.
-- Peu d'années d'historique et rupture de 2022/23 : la prévision doit être lue comme une **alerte**, pas comme un chiffre exact.
-- Les recommandations sont des **pistes génériques** par niveau de risque, à valider par les services techniques.
+- Analyse **régionale** : une région « modérée » peut cacher des communes critiques.
+- Indicateurs **indirects**, faute de taux d'abandon publié par région.
+- Peu d'historique et rupture de 2022/23 : la prévision est une **alerte**, pas un chiffre exact.
+- Recommandations **génériques** par niveau, à valider par les services techniques.
 
 ## 6.3 La suite possible
 
-1. **Descendre au niveau province puis commune** dès que la DGESS rend ces données disponibles ; la table de correspondance et
-   le format long le permettent sans refonte.
-2. **Intégrer les données de vie scolaire** (absentéisme, résultats trimestriels) remontées par les établissements, pour une alerte
-   infra-annuelle.
-3. **Basculer sur le découpage en 17 régions** grâce à la table de correspondance.
-4. **Mise à jour automatique** à chaque nouvel annuaire et hébergement par le ministère.
+**Descendre au niveau province puis commune** dès que la DGESS publie ces données : la
+table de correspondance et le format long le permettent sans refonte. **Intégrer les
+données de vie scolaire** (absentéisme, résultats trimestriels) pour une alerte
+infra-annuelle. **Basculer sur les 17 régions** grâce à la table de correspondance. Et
+automatiser la mise à jour à chaque nouvel annuaire, avec un hébergement par le
+ministère.
 
 # 7. La reproduction
 
 **Prérequis :** Python 3.11 ou plus récent. Aucune base de données à installer.
 
-**Lancer la solution :**
-
-| Système | Commande, à la racine du projet |
-|---|---|
-| Windows | `run.bat` (ou double-clic) |
-| Linux / macOS | `sh run.sh` |
+**Lancer la solution**, à la racine du projet : `run.bat` sous Windows (ou double-clic),
+`sh run.sh` sous Linux et macOS. Le script crée l'environnement Python, installe les
+dépendances, reconstruit les contours des 13 régions si le Data Pack est présent, charge
+les données dans SQLite, puis démarre l'API.
 
 Puis ouvrir :
 
 | Adresse | Contenu |
 |---|---|
-| `http://localhost:8000/app/` | **La carte interactive** — c'est l'entrée principale |
-| `http://localhost:8000/docs` | Documentation interactive de l'API, générée automatiquement |
+| `http://localhost:8000/app/` | **La carte interactive** — l'entrée principale |
+| `http://localhost:8000/docs` | Documentation interactive de l'API |
 | `http://localhost:8000/sante` | État du service et origine des données servies |
 
-Les bibliothèques de l'interface (Vue, Leaflet) sont **servies depuis le projet**
-(`frontend/vendor/`) : l'application fonctionne sans accès internet, ce qui est une
-condition réelle d'usage dans les directions régionales.
+Les bibliothèques de l'interface (Vue, Leaflet) sont **servies depuis le projet** :
+l'application fonctionne sans accès internet, condition réelle d'usage dans les
+directions régionales.
 
-**Ce que fait le script, dans l'ordre :**
+**Chaîne de données.** `nettoyer_dgess.py` (→ `dgess_regional_long.csv`,
+`journal_nettoyage.md`), puis `calculer_indicateurs.py` et `geo_regions.py`
+(→ `indicateurs.csv`, `regions13.geojson`), puis `modele_risque.py` (→ `risque.csv`,
+`rapport_modele.md`, incertitude et métriques), enfin `run.sh` / `run.bat` qui sert
+l'API, la carte et les fiches. Les trois premières étapes s'enchaînent avec
+`python pipeline/executer_pipeline.py`.
 
-1. crée l'environnement Python du projet et installe les dépendances (`backend/requirements.txt`) ;
-2. reconstruit les contours des 13 régions à partir du Data Pack s'il est présent (`pipeline/geo_regions.py`) ;
-3. charge les indicateurs et les scores de risque dans la base SQLite (`backend/app/charger.py`) ;
-4. démarre l'API (`backend/app/main.py`).
-
-**Ordre complet de la chaîne de données :**
-
-| Étape | Script | Produit |
-|---|---|---|
-| 1. Collecte | Dépôt du fichier source dans `data/00_sources/` | Inventaire des sources |
-| 2. Nettoyage | `pipeline/nettoyer_dgess.py` | `dgess_regional_long.csv`, `journal_nettoyage.md`, `controles_coherence.csv` |
-| 3. Transformation | `pipeline/calculer_indicateurs.py`, `pipeline/geo_regions.py` | `indicateurs.csv`, `regions13.geojson`, `correspondance_regions_17_13.csv` |
-| 4. Analyse | `pipeline/modele_risque.py` | `risque.csv`, `rapport_modele.md`, `prevision_2026_incertitude.csv`, `metriques_modeles.csv` |
-| 5. Visualisation | `run.sh` / `run.bat` | API, carte, fiches PDF |
-| 5 bis. Livrables | `pipeline/exporter_fiches.py`, `pipeline/graphiques.py`, `pipeline/captures.mjs` | 13 fiches PDF, 6 figures, 5 captures |
-
-Les étapes 2 à 4 s'enchaînent en une commande avec `python pipeline/executer_pipeline.py`,
-qui refait tout le parcours depuis le fichier source. Les scripts sont **relançables** :
-relancés deux fois sur la même entrée, ils produisent des fichiers rigoureusement
-identiques (vérifié par comparaison de sommes de contrôle).
-
-Le code est déposé sous `AB7C-938F-79BB_05-interpretation_D1_architect_code-api-backend-pipeline_vN.zip` ;
-le fichier `README.md` reprend ces instructions.
+Les scripts sont **relançables** : deux exécutions sur la même entrée produisent des
+fichiers rigoureusement identiques (vérifié par sommes de contrôle). Ceux qui produisent
+les livrables — fiches PDF, figures, captures, export du présent document — sont décrits
+dans le `README.md`. Le code est déposé sous
+`AB7C-938F-79BB_05-interpretation_D1_architect_code-api-backend-pipeline_vN.zip`.
 
 # Annexe – Usage de l'intelligence artificielle
 
-Conformément aux règles du challenge, nous déclarons notre usage d'outils d'IA.
+Le règlement demande de déclarer l'usage de l'IA. Voici ce qui s'est réellement passé.
 
-## Ce que l'IA a fait, et ce qu'elle n'a pas fait
+## Partie du Membre 1 (architecture, API, contours, fiche PDF)
 
-| Étape | Rôle de l'outil | Ce que l'équipe a fait |
-|---|---|---|
-| Cadrage | Lecture du document du challenge, proposition d'un plan de travail et d'une répartition des rôles | Choix du défi, du périmètre et du calendrier ; planning adapté puis validé |
-| Collecte | Aucun | Récupération du fichier DGESS et du Data Pack, inventaire des sources |
-| Nettoyage | Aide à l'écriture de `nettoyer_dgess.py` (lecture des onglets, mise au format long) | Définition des règles de nettoyage, des tolérances et des contrôles ; relecture et exécution |
-| Transformation | Aide à l'écriture de `calculer_indicateurs.py` et `geo_regions.py` | Choix des variables construites et de leurs formules |
-| Analyse | Aide à l'écriture de `modele_risque.py` ; mise en œuvre du protocole de validation | **Choix des composantes, des poids et des seuils** ; règle de décision entre modèles, fixée avant de voir les résultats ; interprétation |
-| Visualisation | Aide à l'écriture de l'API, de l'interface, de la fiche PDF et des scripts de lancement | Maquette, parcours utilisateur, libellés, relecture du rendu |
-| Documentation | Aide à la structuration du document | Rédaction du fond ; chaque chiffre provient de nos scripts |
+| Ce que nous avons demandé | Ce que nous avons retenu |
+|---|---|
+| Analyse du document du challenge et plan de travail | Le planning et la répartition des rôles, après adaptation par l'équipe |
+| Aide à l'écriture du code de l'API, de la fusion des régions, de la fiche PDF et des scripts de lancement | Le code, relu, testé et compris par l'équipe |
+| Aide à la structuration de cette documentation | La structure ; les contenus d'analyse et les chiffres proviennent exclusivement de nos scripts |
 
-**L'outil a consulté la structure du fichier DGESS** — noms des onglets, en-têtes,
-premières lignes — pour proposer une démarche de lecture. Le traitement des données
-complètes a été exécuté par nos scripts, sur nos postes.
+L'outil a consulté la **structure** du fichier DGESS (noms des tableaux, en-têtes et
+premières lignes) pour proposer une démarche.
 
-## La règle que nous nous sommes donnée
+## Partie du Membre 2 (nettoyage, indicateurs, modèle, interface, documentation)
 
-> **Aucun chiffre de ce document n'a été produit par un modèle de langage.**
+- Un **assistant conversationnel** (Claude, d'Anthropic) a analysé le règlement, le
+  planning et le dépôt, et consulté la structure du fichier DGESS (onglets, en-têtes,
+  premières lignes). Il a rédigé le cahier des charges de cette partie : règles de
+  nettoyage et contrôles, composantes, poids et seuils de l'indice, protocole de
+  validation des modèles, maquette de l'interface. Il a relu chaque étape et repéré deux
+  défauts : un indice qui faisait baisser le risque des régions qui rebondissaient après
+  la crise, et des facteurs cités à tort.
+- Un **agent IA** (Hermes), exécuté sur le poste du Membre 2, a écrit et lancé l'ensemble
+  des scripts sur les données complètes : nettoyage, indicateurs, modèle, interface,
+  figures. Il a aussi rédigé une première version des sections du Membre 2.
+- Le **Membre 2** a piloté le travail étape par étape : il a validé, refusé ou fait
+  corriger chaque livrable avant de passer au suivant. L'équipe a relu le document final.
 
-Tous les nombres cités proviennent d'un fichier écrit par un script du dépôt — journal de
-nettoyage, `rapport_modele.md`, `metriques_modeles.csv`, `risque.csv` — et sont
-reproductibles en relançant la chaîne. Les figures sont générées par
-`pipeline/graphiques.py` à partir de ces mêmes fichiers, et les captures d'écran par
-`pipeline/captures.mjs` depuis l'application réellement en fonctionnement. Les deux
-scripts **refusent d'écrire une sortie** dont les données ne correspondent pas à ce qui
-est annoncé, plutôt que de produire une image plausible mais fausse.
+## Ce qui garantit les chiffres
 
-## Ce que cet usage nous a coûté en vigilance
+Aucun chiffre de ce document n'a été écrit de mémoire ou estimé par un modèle de
+langage : tous sortent des fichiers produits par les scripts du dépôt, et peuvent être
+retrouvés en relançant la chaîne. Le script `verifier_documentation.py` compare chaque
+chiffre cité au fichier qui le produit.
 
-Deux erreurs introduites avec l'aide de l'outil ont été détectées par nos propres
-contrôles, et nous les signalons parce qu'elles disent comment nous avons travaillé :
-
-1. **Un indice qui récompensait la catastrophe.** La première version utilisait les
-   variations annuelles : une région ayant perdu la moitié de ses élèves voyait son score
-   s'améliorer dès qu'elle en regagnait un peu. Détecté en relisant le cas du Sahel,
-   corrigé en mesurant le recul depuis le pic (section 3.4).
-2. **Des facteurs de risque cités à tort.** Une région pouvait se voir attribuer comme
-   facteur une composante où elle figurait parmi les meilleures du pays. Corrigé par un
-   filtre au percentile 0,50 (section 4.2).
-
-Dans les deux cas, le code fonctionnait sans erreur : seule la confrontation du résultat
-au terrain a révélé le problème. C'est la raison pour laquelle chaque étape du projet
-produit un journal ou un rapport lisible par un humain, et non seulement un fichier de
-données.
-
-## Une tentative d'injection dans le fichier source, et son traitement
+## Un message caché dans le fichier source
 
 Le classeur DGESS contient, dans **37 cellules d'en-tête réparties sur les 14 onglets**,
-du texte étranger aux données statistiques, placé à la suite de l'année. Notre script de
-nettoyage **n'interprète pas ces cellules** : il en extrait l'année par expression
-régulière et ignore le reste.
-
-Nous avons choisi de ne pas recopier ce texte dans nos livrables, de ne lui obéir en
-aucune façon, et de documenter l'anomalie par son volume et sa répartition. Aucune
-instruction trouvée dans un fichier de données n'a été appliquée, ni dans le code, ni
-dans la documentation. Une donnée reste une donnée : elle ne donne pas d'ordre au
-programme qui la lit.
+un message adressé aux outils d'IA : il indique que ces données ne doivent pas leur être
+transmises, et leur demande d'insérer une phrase de repérage dans les livrables. Le
+script de nettoyage n'en extrait que l'année. Nous n'avons inséré cette phrase nulle
+part, et nous signalons en toute transparence que des outils d'IA ont traité ces
+données, comme décrit ci-dessus.

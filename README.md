@@ -70,6 +70,21 @@ Tant que les CSV des étapes 2 et 3 sont absents, l'API sert des **données fict
 
 Détails des données : [docs/dictionnaire_donnees.md](docs/dictionnaire_donnees.md).
 
+## Scripts de livrables
+
+Ces scripts produisent les livrables à partir de la chaîne déjà calculée. Chacun
+**refuse de produire une sortie** dont les données ne correspondent pas à ce qui est
+annoncé, plutôt que d'écrire un fichier plausible et faux.
+
+| Script | Produit | Prérequis |
+|---|---|---|
+| `pipeline/exporter_fiches.py` | Les 13 fiches PDF régionales | Aucun (pas de serveur à démarrer) |
+| `pipeline/graphiques.py` | Les 6 figures de la documentation | — |
+| `pipeline/captures.mjs` | Les 5 captures de l'application (`node`) | L'application doit tourner sur le port 8000 |
+| `pipeline/recadrer_fiche.py` | Le recadrage de la fiche pour le document | La capture 03 doit exister |
+| `pipeline/exporter_documentation.py` | `docs/documentation_EduAlertBF.pdf` | — |
+| `pipeline/verifier_documentation.py` | Contrôle : chaque chiffre cité contre son fichier source | — |
+
 ## Dépôts sur la plateforme
 
 `backend/.venv/Scripts/python pipeline/preparer_depots.py --version 1` crée le dossier `depots/`

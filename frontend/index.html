@@ -100,7 +100,7 @@
               <th scope="col">Région</th>
               <th scope="col" class="col-nombre">Score</th>
               <th scope="col" v-if="estPrevision" class="col-nombre">Intervalle</th>
-              <th scope="col">Principal facteur</th>
+              <th scope="col">Facteurs principaux</th>
             </tr>
           </thead>
           <tbody>
@@ -132,7 +132,7 @@
                 </template>
                 <template v-else>—</template>
               </td>
-              <td class="petit">{{ libelleFacteur(premierFacteur(ligne.facteurs)) }}</td>
+              <td class="petit">{{ premiersFacteurs(ligne.facteurs) }}</td>
             </tr>
           </tbody>
         </table>

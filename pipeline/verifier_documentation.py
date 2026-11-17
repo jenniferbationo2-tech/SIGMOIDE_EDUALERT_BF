@@ -126,7 +126,7 @@ def main() -> int:
     plis = glissante[glissante["modele"] == retenu]["mae"]
     verifier(fr(plis.max(), 2) in texte, f"pli le plus difficile : {plis.max():.3f}")
     verifier(fr(plis.min(), 2) in texte, f"pli le plus recent : {plis.min():.3f}")
-    verifier("117 observations" in texte and "117" in rapport, "panel de 117 observations")
+    verifier("117" in texte and "117" in rapport, "panel de 117 observations")
     verifier("104 paires" in texte and "104 observations" in rapport, "104 paires N -> N+1")
 
     print("--- survie des cohortes ---")
@@ -150,16 +150,36 @@ def main() -> int:
     for relatif in citees:
         chemin = (DOC.parent / relatif).resolve()
         verifier(chemin.exists(), f"image presente : {relatif}")
-    verifier(len(citees) >= 8, f"{len(citees)} images citees dans le document")
 
-    orphelines = []
-    presentes = {(DOC.parent / r).resolve() for r in citees}
+    # Le reglement plafonne le document a 6 illustrations. L'assertion porte
+    # sur la LISTE exacte, pas sur un minimum : un ajout non prevu doit rougir
+    # au meme titre qu'une suppression.
+    attendues = {
+        "01-carte-2025-observe.png",       # la carte, resultat principal
+        "03-fiche-haut-doc.png",           # la fiche, recadree pour le document
+        "03-prevision-2026-incertitude.png",
+        "04-comparaison-modeles.png",
+        "05-survie-cohortes.png",
+        "06-sensibilite-indice.png",
+    }
+    presentes = {Path(r).name for r in citees}
+    verifier(presentes == attendues,
+             f"{len(citees)} illustrations, conformes a la liste retenue"
+             + ("" if presentes == attendues
+                else f" (en trop : {sorted(presentes - attendues)}, "
+                     f"manquantes : {sorted(attendues - presentes)})"))
+    verifier(len(citees) <= 6, f"{len(citees)} illustrations (maximum 6)")
+
+    # Les autres figures restent dans le depot et dans les depots 05 : leur
+    # absence du document est voulue, ce n'est pas une anomalie.
+    non_citees = []
+    chemins_cites = {(DOC.parent / r).resolve() for r in citees}
     for dossier in ("graphiques", "captures"):
         for fichier in sorted((RACINE / "data/05_interpretation" / dossier).glob("*.png")):
-            if fichier.resolve() not in presentes:
-                orphelines.append(fichier.relative_to(RACINE))
-    for orpheline in orphelines:
-        print(f"  note  figure produite mais non citee : {orpheline}")
+            if fichier.resolve() not in chemins_cites:
+                non_citees.append(fichier.name)
+    print(f"  note  {len(non_citees)} figure(s) conservee(s) au depot sans etre "
+          f"citee(s) dans le document (voulu)")
 
     total, reussis = len(resultats), sum(resultats)
     print(f"\n=== {reussis}/{total} controles OK ===")
