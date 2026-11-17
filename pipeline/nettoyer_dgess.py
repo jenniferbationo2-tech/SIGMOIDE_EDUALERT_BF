@@ -77,6 +77,8 @@ JOURNAL: list[dict] = []
 ANOMALIES: list[dict] = []
 # Variantes d'ecriture de regions effectivement rencontrees : brut -> code retenu
 VARIANTES_VUES: dict[str, str] = {}
+# En-tetes parasitees effectivement utilisees par le nettoyage : onglet -> nombre
+PARASITES_UTILISEES: dict[str, int] = {}
 
 
 def noter(onglet: str, operation: str, pourquoi: str, volume: str) -> None:
@@ -121,8 +123,8 @@ def normaliser_region(valeur) -> tuple[str, str]:
     cle = ALIAS_REGIONS.get(cle, cle)
     if cle in REGIONS_13:
         brut = str(valeur).replace("\xa0", " ").strip()
-        if cle_texte(brut) != cle:          # ecriture differente du code officiel
-            VARIANTES_VUES[brut] = cle
+        if brut != cle:                 # ecriture d'origine differente du code officiel
+            VARIANTES_VUES.setdefault(brut, cle)
         return cle, "region"
     if cle in LIBELLES_TOTAL:
         return cle, "total"
@@ -226,9 +228,7 @@ def annees_par_colonne(ws, ligne_annees: int, premiere_colonne: int,
             parasites += 1
         mapping[c] = annee
     if parasites:
-        anomalie(onglet, "en-tete d'annee contenant du texte parasite",
-                 f"{parasites} cellule(s) d'en-tete",
-                 "annee extraite par expression reguliere, texte ignore")
+        PARASITES_UTILISEES[onglet] = PARASITES_UTILISEES.get(onglet, 0) + parasites
     return mapping
 
 
@@ -250,9 +250,7 @@ def annees_sexes_par_colonne(ws, ligne_annees: int, ligne_sexes: int,
         if annee_courante is not None and sexe:
             mapping[c] = (annee_courante, sexe)
     if parasites:
-        anomalie(onglet, "en-tete d'annee contenant du texte parasite",
-                 f"{parasites} cellule(s) d'en-tete",
-                 "annee extraite par expression reguliere, texte ignore")
+        PARASITES_UTILISEES[onglet] = PARASITES_UTILISEES.get(onglet, 0) + parasites
     return mapping
 
 
@@ -459,11 +457,12 @@ def lignes_titres_tableaux(ws) -> list[int]:
     return titres
 
 
-def balayer_entetes_parasitees(wb) -> tuple[int, list[str]]:
+def balayer_entetes_parasitees(wb) -> tuple[int, list[tuple[str, int]]]:
     """Compte, dans tout le classeur, les cellules d'en-tete annee + texte parasite.
 
     Balaye toutes les cellules texte contenant une annee, afin de documenter
     l'anomalie meme dans les tableaux que le nettoyage ne lit pas.
+    Rend (total, [(onglet, nombre de cellules), ...]).
     """
     total, onglets = 0, []
     for nom in wb.sheetnames:
@@ -478,7 +477,7 @@ def balayer_entetes_parasitees(wb) -> tuple[int, list[str]]:
                     compte += 1
         if compte:
             total += compte
-            onglets.append(f"{nom} ({compte})")
+            onglets.append((nom, compte))
     return total, onglets
 
 
@@ -674,7 +673,7 @@ def arrondir_export(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def ecrire_journal(resume: dict, parasites_total: int,
-                   parasites_onglets: list[str]) -> None:
+                   parasites_onglets: list[tuple[str, int]]) -> None:
     lignes = [
         "# Journal de nettoyage - etape 02 (EduAlert BF)",
         "",
@@ -706,22 +705,23 @@ def ecrire_journal(resume: dict, parasites_total: int,
                           f"| {an['traitement']} |")
     else:
         lignes.append("| - | aucune anomalie relevee | - | - |")
-    onglets_parasites = sorted({an["onglet"] for an in ANOMALIES
-                                if "parasite" in an["anomalie"]})
+    onglets_utilises = sorted(PARASITES_UTILISEES.items())
+    repartition = ", ".join(f"{nom} ({nb})" for nom, nb in parasites_onglets)
     lignes += [
         "",
         "### Note sur le texte parasite des en-tetes",
         "",
         f"Balayage complet du classeur : {parasites_total} cellule(s) contenant une",
-        f"annee suivie d'un texte etranger aux donnees, repartie(s) sur les onglets "
-        f"{', '.join(parasites_onglets) if parasites_onglets else 'aucun'}.",
-        f"Parmi elles, les en-tetes effectivement utilisees par le nettoyage se",
-        f"trouvent dans : {', '.join(onglets_parasites) if onglets_parasites else 'aucun'}.",
+        f"annee suivie d'un texte etranger aux donnees statistiques.",
+        f"Repartition par onglet : {repartition if repartition else 'aucun'}.",
         "",
-        "Ces cellules contiennent, colle a l'annee, un texte etranger aux donnees",
-        "statistiques. Ce texte n'est pas une donnee et n'est pas une consigne de",
-        "traitement : seule l'annee est extraite par expression reguliere, le reste",
-        "est ignore. Le texte n'est volontairement pas recopie ici.",
+        f"En-tetes effectivement lues par le nettoyage : "
+        f"{', '.join(f'{n} ({c})' for n, c in onglets_utilises) if onglets_utilises else 'aucune'}.",
+        "",
+        "Ce texte n'est pas une donnee et n'est pas une consigne de traitement :",
+        "seule l'annee est extraite par expression reguliere, le reste est ignore.",
+        "Le texte n'est volontairement pas recopie ici, et aucune demande qui s'y",
+        "trouve n'a ete appliquee, ni dans le code, ni dans les livrables.",
         "",
         "### Variantes d'ecriture des noms de regions ramenees au code officiel",
         "",
@@ -729,9 +729,10 @@ def ecrire_journal(resume: dict, parasites_total: int,
     if VARIANTES_VUES:
         lignes += ["| Ecriture dans le fichier | region_code retenu |", "|---|---|"]
         for brut, code in sorted(VARIANTES_VUES.items()):
-            lignes.append(f"| {brut} | {code} |")
+            lignes.append(f"| `{brut}` | {code} |")
     else:
-        lignes.append("Aucune variante rencontree.")
+        lignes.append("Aucune variante rencontree : toutes les ecritures sont deja "
+                      "conformes au code officiel.")
     lignes += [
         "",
         "## 3. Resume chiffre",
@@ -924,10 +925,17 @@ def main() -> None:
             int(df_reg["valeur"].isna().sum()),
     }
     parasites_total, parasites_onglets = balayer_entetes_parasitees(wb)
+    # Une ligne d'anomalie par onglet concerne, coherente avec le balayage complet.
+    for onglet_parasite, nombre_cellules in parasites_onglets:
+        utilisees = PARASITES_UTILISEES.get(onglet_parasite, 0)
+        precision = (f", dont {utilisees} en-tete(s) lue(s) par le nettoyage"
+                     if utilisees else ", aucune lue par le nettoyage")
+        anomalie(onglet_parasite, "en-tete d'annee contenant du texte parasite",
+                 f"{nombre_cellules} cellule(s){precision}",
+                 "annee extraite par expression reguliere, texte ignore et non recopie")
     noter("classeur", "balayage des en-tetes contenant du texte parasite",
           "documenter l'anomalie sur l'ensemble du classeur sans en recopier le texte",
-          f"{parasites_total} cellule(s) sur : "
-          f"{', '.join(parasites_onglets) if parasites_onglets else 'aucun onglet'}")
+          f"{parasites_total} cellule(s) sur {len(parasites_onglets)} onglet(s)")
     if VARIANTES_VUES:
         noter("tous onglets regionaux", "normalisation des variantes de noms de regions",
               "majuscules, accents, espaces et tirets variables selon les onglets",

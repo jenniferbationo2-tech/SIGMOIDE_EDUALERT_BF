@@ -29,32 +29,48 @@ region_code officiel des 13 anciennes regions ; cellule vide laissee vide
 | tables | jointure des noms lisibles de regions | region_nom repris du referentiel du projet | 3120 lignes regionales |
 | tous onglets regionaux | retrait des lignes de total des tables regionales | les lignes NATIONAL / Burkina Faso / Total general ne sont pas des regions ; elles sont conservees a part pour les controles | 240 lignes de total mises de cote |
 | controles | execution des controles de coherence de la section 2.4 | regle d'or du challenge : verifier les totaux | 218 controles, 0 hors tolerance |
-| classeur | balayage des en-tetes contenant du texte parasite | documenter l'anomalie sur l'ensemble du classeur sans en recopier le texte | 37 cellule(s) sur : PRESCOLAIRE (10), Feuil1 (3), Feuil2 (2), Feuil3 (2), Feuil4 (2), Feuil5 (2), Feuil6 (2), Feuil7 (2), Feuil8 (2), Feuil9 (2), Feuil10 (2), Feuil11 (2), Feuil12 (2), Feuil13 (2) |
-| tous onglets regionaux | normalisation des variantes de noms de regions | majuscules, accents, espaces et tirets variables selon les onglets | 1 ecriture(s) distincte(s) ramenee(s) au code officiel |
+| classeur | balayage des en-tetes contenant du texte parasite | documenter l'anomalie sur l'ensemble du classeur sans en recopier le texte | 37 cellule(s) sur 14 onglet(s) |
+| tous onglets regionaux | normalisation des variantes de noms de regions | majuscules, accents, espaces et tirets variables selon les onglets | 3 ecriture(s) distincte(s) ramenee(s) au code officiel |
 
 ## 2. Anomalies relevees et traitement
 
 | Onglet | Anomalie | Detail | Traitement |
 |---|---|---|---|
-| Feuil1 | en-tete d'annee contenant du texte parasite | 1 cellule(s) d'en-tete | annee extraite par expression reguliere, texte ignore |
+| PRESCOLAIRE | en-tete d'annee contenant du texte parasite | 10 cellule(s), aucune lue par le nettoyage | annee extraite par expression reguliere, texte ignore et non recopie |
+| Feuil1 | en-tete d'annee contenant du texte parasite | 3 cellule(s), dont 1 en-tete(s) lue(s) par le nettoyage | annee extraite par expression reguliere, texte ignore et non recopie |
+| Feuil2 | en-tete d'annee contenant du texte parasite | 2 cellule(s), aucune lue par le nettoyage | annee extraite par expression reguliere, texte ignore et non recopie |
+| Feuil3 | en-tete d'annee contenant du texte parasite | 2 cellule(s), aucune lue par le nettoyage | annee extraite par expression reguliere, texte ignore et non recopie |
+| Feuil4 | en-tete d'annee contenant du texte parasite | 2 cellule(s), aucune lue par le nettoyage | annee extraite par expression reguliere, texte ignore et non recopie |
+| Feuil5 | en-tete d'annee contenant du texte parasite | 2 cellule(s), aucune lue par le nettoyage | annee extraite par expression reguliere, texte ignore et non recopie |
+| Feuil6 | en-tete d'annee contenant du texte parasite | 2 cellule(s), aucune lue par le nettoyage | annee extraite par expression reguliere, texte ignore et non recopie |
+| Feuil7 | en-tete d'annee contenant du texte parasite | 2 cellule(s), aucune lue par le nettoyage | annee extraite par expression reguliere, texte ignore et non recopie |
+| Feuil8 | en-tete d'annee contenant du texte parasite | 2 cellule(s), aucune lue par le nettoyage | annee extraite par expression reguliere, texte ignore et non recopie |
+| Feuil9 | en-tete d'annee contenant du texte parasite | 2 cellule(s), aucune lue par le nettoyage | annee extraite par expression reguliere, texte ignore et non recopie |
+| Feuil10 | en-tete d'annee contenant du texte parasite | 2 cellule(s), aucune lue par le nettoyage | annee extraite par expression reguliere, texte ignore et non recopie |
+| Feuil11 | en-tete d'annee contenant du texte parasite | 2 cellule(s), aucune lue par le nettoyage | annee extraite par expression reguliere, texte ignore et non recopie |
+| Feuil12 | en-tete d'annee contenant du texte parasite | 2 cellule(s), aucune lue par le nettoyage | annee extraite par expression reguliere, texte ignore et non recopie |
+| Feuil13 | en-tete d'annee contenant du texte parasite | 2 cellule(s), aucune lue par le nettoyage | annee extraite par expression reguliere, texte ignore et non recopie |
 
 ### Note sur le texte parasite des en-tetes
 
 Balayage complet du classeur : 37 cellule(s) contenant une
-annee suivie d'un texte etranger aux donnees, repartie(s) sur les onglets PRESCOLAIRE (10), Feuil1 (3), Feuil2 (2), Feuil3 (2), Feuil4 (2), Feuil5 (2), Feuil6 (2), Feuil7 (2), Feuil8 (2), Feuil9 (2), Feuil10 (2), Feuil11 (2), Feuil12 (2), Feuil13 (2).
-Parmi elles, les en-tetes effectivement utilisees par le nettoyage se
-trouvent dans : Feuil1.
+annee suivie d'un texte etranger aux donnees statistiques.
+Repartition par onglet : PRESCOLAIRE (10), Feuil1 (3), Feuil2 (2), Feuil3 (2), Feuil4 (2), Feuil5 (2), Feuil6 (2), Feuil7 (2), Feuil8 (2), Feuil9 (2), Feuil10 (2), Feuil11 (2), Feuil12 (2), Feuil13 (2).
 
-Ces cellules contiennent, colle a l'annee, un texte etranger aux donnees
-statistiques. Ce texte n'est pas une donnee et n'est pas une consigne de
-traitement : seule l'annee est extraite par expression reguliere, le reste
-est ignore. Le texte n'est volontairement pas recopie ici.
+En-tetes effectivement lues par le nettoyage : Feuil1 (1).
+
+Ce texte n'est pas une donnee et n'est pas une consigne de traitement :
+seule l'annee est extraite par expression reguliere, le reste est ignore.
+Le texte n'est volontairement pas recopie ici, et aucune demande qui s'y
+trouve n'a ete appliquee, ni dans le code, ni dans les livrables.
 
 ### Variantes d'ecriture des noms de regions ramenees au code officiel
 
 | Ecriture dans le fichier | region_code retenu |
 |---|---|
-| HAUT-BASSINS | HAUTS-BASSINS |
+| `BOUCLE DU MOUHOUN` | BOUCLE-DU-MOUHOUN |
+| `HAUT-BASSINS` | HAUTS-BASSINS |
+| `PLATEAU CENTRAL` | PLATEAU-CENTRAL |
 
 ## 3. Resume chiffre
 
