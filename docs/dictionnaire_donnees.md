@@ -79,14 +79,26 @@ Origine des données chargées (`reel` ou `FICTIF`), exposée par `GET /sante`.
 | `nombre_ecoles` | Écoles primaires, tous statuts (public + privé) | Feuil13 | écoles | T |
 | `nombre_ecoles_public` | Écoles primaires publiques | Feuil13 | écoles | T |
 | `nombre_ecoles_prive` | Écoles primaires privées | Feuil13 | écoles | T |
-| `variation_effectif_primaire` | (effectif N − effectif N−1) / effectif N−1 × 100. Une chute traduit des élèves sortis du système (fermetures, déplacements de population) | calculé (Feuil1) | % | G/F/T |
-| `variation_nombre_ecoles` | (écoles N − écoles N−1) / écoles N−1 × 100. Mesure les fermetures d'écoles liées à l'insécurité | calculé (Feuil13) | % | T |
+| `variation_effectif_primaire` | (effectif N − effectif N−1) / effectif N−1 × 100. Une chute traduit des élèves sortis du système (fermetures, déplacements de population). Indicateur d'affichage : il n'entre pas dans l'indice de risque, car un rebond après effondrement donne une variation positive trompeuse | calculé (Feuil1) | % | G/F/T |
+| `variation_nombre_ecoles` | (écoles N − écoles N−1) / écoles N−1 × 100. Mesure les fermetures d'écoles liées à l'insécurité. Indicateur d'affichage, hors indice de risque (même raison) | calculé (Feuil13) | % | T |
+| `recul_effectif_primaire_vs_pic` | (effectif N / maximum des effectifs de 2016 à N − 1) × 100. Négatif ou nul. Mesure la part des élèves jamais revenus depuis le meilleur niveau atteint par la région. Entre dans l'indice de risque à la place de la variation annuelle | calculé (Feuil1) | % | T |
+| `recul_nombre_ecoles_vs_pic` | (écoles N / maximum des écoles de 2016 à N − 1) × 100. Négatif ou nul. Mesure les écoles jamais réouvertes depuis le pic. Entre dans l'indice de risque | calculé (Feuil13) | % | T |
 | `eleves_par_ecole` | effectif primaire / nombre d'écoles. Mesure la pression sur l'offre scolaire restante | calculé (Feuil1, Feuil13) | élèves par école | T |
 | `ecart_tba_tap` | TBA − TAP, en points. Un écart large signale que beaucoup d'élèves entrent mais que peu achèvent : déperdition en cours de cycle | calculé (Feuil6, Feuil8) | points de % | T |
 | `variation_taux_achevement` | TAP N − TAP N−1, en points. Mesure la dégradation de la rétention | calculé (Feuil8) | points de % | T |
 
 Les indicateurs de variation n'existent pas pour 2016 (pas d'année N−1) : aucune ligne n'est écrite
-pour cette année-là, plutôt qu'une ligne à valeur vide.
+pour cette année-là, plutôt qu'une ligne à valeur vide. Les deux indicateurs de recul existent dès
+2016, où ils valent 0 par construction (l'année est son propre maximum).
+
+**Pourquoi un recul depuis le pic en plus de la variation annuelle ?** La variation annuelle fait
+baisser à tort le risque d'une région encore dévastée : en 2025 le Sahel gagne 10,5 % d'élèves et
+10 % d'écoles, mais il lui manque toujours 52,8 % de ses élèves et 82,0 % de ses écoles par rapport
+à son meilleur niveau. Le recul depuis le pic mesure ce qui n'a pas été reconstitué. Les deux
+familles restent publiées : les variations pour la lecture année par année, les reculs pour l'indice.
+
+Les valeurs sont écrites avec 4 décimales dans `indicateurs.csv`. En amont,
+`data/02_nettoyage/` conserve les taux en pleine précision, car les IPS sont des rapports de taux.
 
 Les indicateurs du Data Pack (PDI, incidents, population INSD, enseignants) s'ajoutent avec la même règle :
 nom en minuscules, sans accent, mots séparés par `_`, et une ligne dans ce tableau.

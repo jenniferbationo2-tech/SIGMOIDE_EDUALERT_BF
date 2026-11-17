@@ -68,6 +68,26 @@ def difference_annuelle(serie: pd.Series) -> pd.Series:
             .apply(lambda s: s.sort_index(level="annee").diff()))
 
 
+def recul_depuis_pic(serie: pd.Series) -> pd.Series:
+    """(valeur N / maximum observe jusqu'a N - 1) x 100, par region et sexe.
+
+    Negatif ou nul. Ne regarde que les annees <= N (maximum glissant), pour ne
+    jamais utiliser une information future.
+
+    Pourquoi cet indicateur : la variation annuelle fait baisser a tort le
+    risque d'une region encore devastee. Une region qui a perdu la moitie de
+    ses eleves en 2023 et en regagne 10 % en 2025 affiche une variation
+    annuelle positive, alors qu'il lui manque toujours la moitie de ses eleves.
+    Le recul depuis le pic mesure ce qui n'a pas ete reconstitue.
+    """
+    def calculer(valeurs: pd.Series) -> pd.Series:
+        ordonnees = valeurs.sort_index(level="annee")
+        pic_glissant = ordonnees.cummax()
+        return (ordonnees / pic_glissant.where(pic_glissant != 0) - 1) * 100
+    return (serie.groupby(level=["region_code", "sexe"], group_keys=False)
+            .apply(calculer))
+
+
 def ips(valeurs: pd.DataFrame, variable: str) -> pd.Series:
     """Indice de parite : taux des filles / taux des garcons, recalcule.
 
@@ -169,6 +189,14 @@ def main() -> None:
     tap = valeurs["taux_achevement"].dropna()
     tap_total = tap[tap.index.get_level_values("sexe") == "T"]
     ajouter(lignes, difference_annuelle(tap_total), "variation_taux_achevement")
+
+    # Reculs depuis le pic observe (sexe T) : ce qui n'a pas ete reconstitue.
+    effectif_t_serie = valeurs["effectif_primaire"].dropna()
+    effectif_t_serie = effectif_t_serie[
+        effectif_t_serie.index.get_level_values("sexe") == "T"]
+    ajouter(lignes, recul_depuis_pic(effectif_t_serie),
+            "recul_effectif_primaire_vs_pic")
+    ajouter(lignes, recul_depuis_pic(ecoles_t), "recul_nombre_ecoles_vs_pic")
 
     # IPS recalcules (sexe T).
     ajouter(lignes, ips(valeurs, "taux_brut_admission"), "ips_tba", sexe_force="T")

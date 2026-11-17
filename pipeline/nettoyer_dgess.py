@@ -665,11 +665,15 @@ def controler_valeurs(regional: pd.DataFrame) -> None:
 # Ecriture des sorties
 # --------------------------------------------------------------------------
 def arrondir_export(df: pd.DataFrame) -> pd.DataFrame:
-    """Arrondit les taux et indices a 2 decimales (a l'export uniquement)."""
-    df = df.copy()
-    est_taux = df["variable"].str.startswith(("taux", "ips"))
-    df.loc[est_taux, "valeur"] = df.loc[est_taux, "valeur"].round(2)
-    return df
+    """Les valeurs sont exportees en pleine precision.
+
+    Les taux et indices ne sont PAS arrondis ici : l'arrondi se ferait au
+    detriment des indicateurs calcules a l'etape 03 (les IPS sont des rapports
+    de taux, et un arrondi a 2 decimales des taux deplace la 4e decimale du
+    rapport). L'arrondi d'affichage est fait a l'export de indicateurs.csv
+    et dans l'interface.
+    """
+    return df.copy()
 
 
 def ecrire_journal(resume: dict, parasites_total: int,
@@ -683,6 +687,11 @@ def ecrire_journal(resume: dict, parasites_total: int,
         "Regles appliquees : annee = annee de fin de l'annee scolaire ; sexe en G/F/T ;",
         "region_code officiel des 13 anciennes regions ; cellule vide laissee vide",
         "(jamais remplacee par 0) ; encodage UTF-8 ; colonnes en minuscules sans accent.",
+        "",
+        "Les taux et indices sont ecrits en pleine precision (aucun arrondi a l'export) :",
+        "les indicateurs de l'etape 03 en derivent, et les IPS etant des rapports de taux,",
+        "un arrondi a 2 decimales des taux deplacerait la 4e decimale du rapport.",
+        "L'arrondi d'affichage est fait a l'export de indicateurs.csv et dans l'interface.",
         "",
         "## 1. Operations",
         "",
