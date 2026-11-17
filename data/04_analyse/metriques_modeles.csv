@@ -1,4 +1,13 @@
-modele,mae,rmse,justesse_niveau,f1_critique,lignes_entrainement,lignes_test,bat_la_reference_naive,retenu
-reference naive (score N+1 = score N),6.995,9.064,0.821,0.889,65,39,-,oui
-regression Ridge (alpha=0.1),8.051,9.98,0.795,0.857,65,39,non,non
-foret aleatoire (max_depth=3),8.221,10.274,0.718,0.75,65,39,non,non
+protocole,pli,modele,mae,rmse,justesse_niveau,f1_critique,lignes_entrainement,lignes_test,bat_la_reference_naive,retenu_pour_2026
+fixe,"apprend <= 2022, teste 2023-2025",reference naive (score N+1 = score N),6.995,9.064,0.821,0.889,65,39,-,oui
+fixe,"apprend <= 2022, teste 2023-2025",regression Ridge (alpha=0.1),8.051,9.98,0.795,0.857,65,39,non,non
+fixe,"apprend <= 2022, teste 2023-2025",foret aleatoire (max_depth=3),8.221,10.274,0.718,0.75,65,39,non,non
+glissante,"apprend <= 2022, teste 2023",reference naive (score N+1 = score N),8.846,11.202,0.538,0.667,65,13,-,oui
+glissante,"apprend <= 2022, teste 2023",regression Ridge (alpha=0.1),9.433,11.727,0.615,0.8,65,13,non,non
+glissante,"apprend <= 2022, teste 2023",foret aleatoire (max_depth=3),8.997,11.266,0.538,0.667,65,13,non,non
+glissante,"apprend <= 2023, teste 2024",reference naive (score N+1 = score N),8.315,9.505,0.923,0.923,78,13,-,oui
+glissante,"apprend <= 2023, teste 2024",regression Ridge (alpha=0.1),7.481,9.439,0.846,0.833,78,13,oui,non
+glissante,"apprend <= 2023, teste 2024",foret aleatoire (max_depth=3),7.546,8.713,0.923,0.923,78,13,oui,non
+glissante,"apprend <= 2024, teste 2025",reference naive (score N+1 = score N),3.823,5.533,1.0,1.0,91,13,-,oui
+glissante,"apprend <= 2024, teste 2025",regression Ridge (alpha=0.1),5.257,6.382,0.923,0.933,91,13,non,non
+glissante,"apprend <= 2024, teste 2025",foret aleatoire (max_depth=3),4.542,5.715,0.923,0.933,91,13,non,non

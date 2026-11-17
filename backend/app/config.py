@@ -9,6 +9,13 @@ DOSSIER_EXEMPLE = Path(__file__).resolve().parents[1] / "donnees_exemple"
 BASE_SQLITE = Path(__file__).resolve().parents[1] / "edualert.sqlite"
 GEOJSON_REGIONS = DOSSIER_DONNEES / "regions13.geojson"
 
+# Application web (Membre 2) : servie en fichiers statiques sur /app par main.py.
+DOSSIER_FRONTEND = RACINE / "frontend"
+
+# Sorties du modele exposees par GET /modele (Membre 2).
+FICHIER_METRIQUES = "metriques_modeles.csv"
+FICHIER_INCERTITUDE = "prevision_2026_incertitude.csv"
+
 # Fichiers attendus du Membre 2 (contrat, voir docs/Planning_EduAlertBF.md section 6).
 # Tant qu'ils n'existent pas, on charge les fichiers FICTIFS de donnees_exemple/.
 FICHIER_INDICATEURS = "indicateurs.csv"   # region_code, region_nom, annee, sexe, indicateur, valeur

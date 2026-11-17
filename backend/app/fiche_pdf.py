@@ -19,6 +19,32 @@ LIBELLES = {
     "taux_reussite_cep": "Taux de réussite au CEP (%)",
     "nombre_ecoles": "Nombre d'écoles",
     "effectif_primaire": "Effectif du primaire",
+    # Indicateurs ajoutes par le Membre 2 (etape 03)
+    "effectif_prescolaire": "Effectif du préscolaire",
+    "nouveaux_inscrits_cp1": "Nouveaux inscrits au CP1",
+    "nombre_ecoles_public": "Nombre d'écoles publiques",
+    "nombre_ecoles_prive": "Nombre d'écoles privées",
+    "eleves_par_ecole": "Élèves par école",
+    "ecart_tba_tap": "Écart admission - achèvement (points)",
+    "recul_effectif_primaire_vs_pic": "Élèves perdus depuis le pic (%)",
+    "recul_nombre_ecoles_vs_pic": "Écoles fermées depuis le pic (%)",
+    "ips_tba": "Indice de parité F/G (TBA)",
+    "ips_tbs": "Indice de parité F/G (TBS)",
+    "ips_tap": "Indice de parité F/G (TAP)",
+    "variation_effectif_primaire": "Variation des effectifs (%)",
+    "variation_nombre_ecoles": "Variation du nombre d'écoles (%)",
+    "variation_taux_achevement": "Variation du taux d'achèvement (points)",
+}
+
+# Libelles lisibles des codes facteurs de risque.
+LIBELLES_FACTEURS = {
+    "ecart_admission_achevement": "Écart entre admission et achèvement",
+    "faible_achevement": "Faible taux d'achèvement",
+    "recul_effectifs": "Élèves perdus depuis le pic",
+    "fermeture_ecoles": "Fermetures d'écoles",
+    "faible_scolarisation": "Faible scolarisation",
+    "disparite_filles_garcons": "Inégalité filles-garçons",
+    "aucun_facteur_marquant": "Aucun facteur marquant",
 }
 SEXES = {"G": "Garçons", "F": "Filles", "T": "Total"}
 
@@ -86,8 +112,20 @@ def generer_fiche(fiche: dict, source_donnees: str) -> bytes:
 
     if actuel.get("facteurs"):
         pdf.set_font("Helvetica", "I", 10)
-        facteurs = ", ".join(f.replace("_", " ") for f in actuel["facteurs"].split(";"))
+        facteurs = ", ".join(
+            LIBELLES_FACTEURS.get(f, f.replace("_", " "))
+            for f in actuel["facteurs"].split(";"))
         pdf.multi_cell(0, 5, _texte(f"Principaux facteurs : {facteurs}"), new_x="LMARGIN", new_y="NEXT")
+
+    # Intervalle de confiance, uniquement pour une annee prevue.
+    incertitude = fiche.get("incertitude_prevision")
+    if actuel.get("est_prevision") and incertitude:
+        pdf.set_font("Helvetica", "", 10)
+        pdf.multi_cell(0, 5, _texte(
+            f"Intervalle probable : {_nombre(incertitude['score_bas'])} a "
+            f"{_nombre(incertitude['score_haut'])} - probabilite d'etre critique : "
+            f"{incertitude['proba_critique'] * 100:.0f} %"),
+            new_x="LMARGIN", new_y="NEXT")
 
     # --- Evolution du score (histogramme)
     _titre_section(pdf, "Évolution du score de risque")
@@ -142,6 +180,21 @@ def generer_fiche(fiche: dict, source_donnees: str) -> bytes:
     pdf.set_font("Helvetica", "", 10)
     for reco in fiche["recommandations"]:
         pdf.multi_cell(0, 6, _texte(f"-  {reco}"), new_x="LMARGIN", new_y="NEXT")
+
+    # --- Pistes par facteur de risque (Membre 2)
+    par_facteur = fiche.get("actions_par_facteur") or []
+    if par_facteur and pdf.get_y() < 248:
+        pdf.ln(1)
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.cell(0, 5, _texte("Pistes selon les facteurs de la région :"),
+                 new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", "", 9)
+        for bloc in par_facteur:
+            if pdf.get_y() > 258:
+                break
+            pdf.multi_cell(0, 4.5, _texte(
+                f"{bloc['libelle']} : {' ; '.join(bloc['actions'])}"),
+                new_x="LMARGIN", new_y="NEXT")
 
     # --- Pied de page : sources et avertissement
     pdf.set_y(272)

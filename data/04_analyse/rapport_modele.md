@@ -30,6 +30,13 @@ annee a l'autre.
 Score = 100 x somme(poids x percentile), arrondi a 1 decimale.
 Niveaux : `Faible` < 33, `Modere` 33-66, `Critique` >= 66.
 
+**Facteurs affiches** : une composante n'est citee comme facteur que si son
+percentile atteint 0,50, c'est-a-dire si la region se situe au-dessus de la
+mediane nationale sur cette composante. Sans ce filtre, une region pouvait
+voir citer comme « facteur de risque » une composante ou elle fait partie des
+meilleures du pays. Au maximum 3 facteurs, tries par contribution. Si aucune
+composante ne passe le filtre : `aucun_facteur_marquant`.
+
 ### Pourquoi le recul depuis le pic plutot que la variation annuelle
 
 Une premiere version de l'indice utilisait les variations annuelles des
@@ -57,37 +64,80 @@ annee
 2025           7       1       5
 ```
 
-## 4. Modeles de prevision N+1
+## 4. Modeles de prevision N+1 : deux protocoles de validation
 
-Paires annee N -> score N+1 : 104 observations au total,
-65 en entrainement (cibles <= 2022) et 39 en test
-(cibles 2023, 2024 et 2025). La validation est **temporelle** : aucun melange
-aleatoire des annees, le modele ne voit jamais le futur.
+Paires annee N -> score N+1 : 104 observations au total. La validation
+est toujours **temporelle** : aucun melange aleatoire des annees, le modele ne
+voit jamais le futur. Les hyperparametres sont choisis a l'interieur de chaque
+jeu d'entrainement.
+
+### Regle de decision, fixee avant de regarder les resultats
+
+> Le modele retenu pour la prevision 2026 est celui qui obtient la plus faible
+> MAE moyenne sur les trois plis glissants. Si son avance sur la reference
+> naive est inferieure a 0.3 point de MAE, on garde la reference
+> naive, car elle est plus simple et plus previsible.
+
+### 4.1 Protocole fixe (apprend sur les cibles <= 2022, teste 2023-2025)
+
+65 paires en entrainement, 39 en test.
 
 ```
-                               modele   mae   rmse  justesse_niveau  f1_critique bat_la_reference_naive retenu
-reference naive (score N+1 = score N) 6.995  9.064            0.821        0.889                      -    oui
-         regression Ridge (alpha=0.1) 8.051  9.980            0.795        0.857                    non    non
-        foret aleatoire (max_depth=3) 8.221 10.274            0.718        0.750                    non    non
+                               modele   mae   rmse  justesse_niveau  f1_critique bat_la_reference_naive
+reference naive (score N+1 = score N) 6.995  9.064            0.821        0.889                      -
+         regression Ridge (alpha=0.1) 8.051  9.980            0.795        0.857                    non
+        foret aleatoire (max_depth=3) 8.221 10.274            0.718        0.750                    non
 ```
 
-**Modele retenu : reference naive (score N+1 = score N)** (meilleure MAE sur le test).
+### 4.2 Validation glissante (3 plis)
 
-**Honnetement : aucun modele appris ne bat la reference naive** (MAE 6.995 contre 6.995 pour la reference).
+Chaque pli reproduit la situation reelle : on apprend sur tout le passe
+disponible et on prevoit l'annee suivante.
 
-Deux raisons, et il faut les dire :
+```
+                        pli                                modele   mae   rmse  justesse_niveau bat_la_reference_naive
+apprend <= 2022, teste 2023 reference naive (score N+1 = score N) 8.846 11.202            0.538                      -
+apprend <= 2022, teste 2023          regression Ridge (alpha=0.1) 9.433 11.727            0.615                    non
+apprend <= 2022, teste 2023         foret aleatoire (max_depth=3) 8.997 11.266            0.538                    non
+apprend <= 2023, teste 2024 reference naive (score N+1 = score N) 8.315  9.505            0.923                      -
+apprend <= 2023, teste 2024          regression Ridge (alpha=0.1) 7.481  9.439            0.846                    oui
+apprend <= 2023, teste 2024         foret aleatoire (max_depth=3) 7.546  8.713            0.923                    oui
+apprend <= 2024, teste 2025 reference naive (score N+1 = score N) 3.823  5.533            1.000                      -
+apprend <= 2024, teste 2025          regression Ridge (alpha=0.1) 5.257  6.382            0.923                    non
+apprend <= 2024, teste 2025         foret aleatoire (max_depth=3) 4.542  5.715            0.923                    non
+```
 
-1. **Le choc de 2022/23 est un changement de regime.** Le modele est
-   entraine sur des annees ou le systeme scolaire se degrade lentement,
-   puis teste sur l'apres-effondrement. Les relations apprises ne tiennent
-   plus.
+MAE moyenne sur les trois plis :
+
+```
+                 mae_moyenne  rmse_moyenne  justesse_moyenne
+modele                                                      
+reference naive     6.994667      8.746667          0.820333
+foret aleatoire     7.028333      8.564667          0.794667
+Ridge               7.390333      9.182667          0.794667
+```
+
+### 4.3 Modele retenu : reference naive (score N+1 = score N)
+
+Raison (application de la regle ci-dessus) : la reference naive a la plus faible MAE moyenne glissante (6.995).
+
+**Honnetement : aucun modele appris ne bat la reference naive**, ni en
+protocole fixe, ni en validation glissante. Deux raisons, et il faut les
+dire :
+
+1. **Le choc de 2022/23 est un changement de regime.** Les modeles
+   apprennent sur des annees ou le systeme scolaire se degrade lentement,
+   puis doivent prevoir l'apres-effondrement. Les relations apprises ne
+   tiennent plus.
 2. **104 observations, c'est tres peu** pour apprendre une relation
    a 9 variables. Le score d'une region est par ailleurs tres stable d'une
-   annee a l'autre, ce qui rend la reference naive difficile a battre.
+   annee a l'autre, ce qui rend la persistance difficile a battre.
 
 Conclusion assumee : pour la prevision 2026, on garde la methode la plus
-simple et la plus fiable sur le test, plutot qu'un modele plus savant mais
-moins juste.
+simple et la plus fiable sur les deux protocoles, plutot qu'un modele plus
+savant mais moins juste. L'analyse d'importance des variables confirme ce
+diagnostic : le score de l'annee N explique a lui seul l'essentiel de la
+prevision.
 
 ### Matrice de confusion des niveaux (modele retenu, test 2023-2025)
 
@@ -128,12 +178,36 @@ sans_ecart_admission_achevement               0.9054                            
 
 Lecture : une correlation de Spearman proche de 1 signifie que le classement
 des regions ne depend pas du detail des poids. C'est le cas ici, ce qui rend
-l'indice robuste a ce choix.
+l'indice robuste a ce choix. La variante `avec_variations_annuelles` est la
+plus eloignee : c'est la version ecartee de l'indice, et l'ecart montre que
+le choix du recul depuis le pic change reellement le classement.
 
-## 7. Prevision 2026
+## 7. Prevision 2026 et son incertitude
 
 Methode : reference naive : score 2026 = score 2025.
 Les facteurs affiches pour 2026 sont ceux de 2025.
+
+L'incertitude est estimee a partir de la distribution des erreurs du modele
+retenu sur les trois plis glissants : `score_bas` et `score_haut` sont les
+quantiles 10 % et 90 % de ces erreurs appliques au score prevu (bornes a
+0 et 100), et `proba_critique` est la part des erreurs observees qui
+amenerait la region a 66 ou plus.
+
+| Rang | Region | Score | Intervalle probable | Proba. critique | Niveau | Facteurs |
+|---|---|---|---|---|---|---|
+| 1 | CENTRE-NORD | 87.7 | 81.0 - 100.0 | 100 % | Critique | ecart_admission_achevement;faible_achevement;recul_effectifs |
+| 2 | BOUCLE-DU-MOUHOUN | 81.0 | 74.3 - 96.1 | 100 % | Critique | ecart_admission_achevement;recul_effectifs;faible_achevement |
+| 3 | SAHEL | 75.4 | 68.7 - 90.5 | 95 % | Critique | faible_achevement;recul_effectifs;fermeture_ecoles |
+| 4 | EST | 72.9 | 66.2 - 88.0 | 90 % | Critique | faible_achevement;recul_effectifs;fermeture_ecoles |
+| 5 | NORD | 69.7 | 63.0 - 84.8 | 85 % | Critique | ecart_admission_achevement;faible_achevement;fermeture_ecoles |
+| 6 | CASCADES | 67.3 | 60.6 - 82.4 | 77 % | Critique | ecart_admission_achevement;faible_achevement;recul_effectifs |
+| 7 | CENTRE-EST | 67.1 | 60.4 - 82.2 | 72 % | Critique | ecart_admission_achevement;faible_achevement;fermeture_ecoles |
+| 8 | SUD-OUEST | 56.7 | 50.0 - 71.8 | 26 % | Modere | ecart_admission_achevement;faible_achevement;fermeture_ecoles |
+| 9 | PLATEAU-CENTRAL | 55.9 | 49.2 - 71.0 | 26 % | Modere | ecart_admission_achevement;fermeture_ecoles;disparite_filles_garcons |
+| 10 | HAUTS-BASSINS | 55.7 | 49.0 - 70.8 | 26 % | Modere | ecart_admission_achevement;recul_effectifs;fermeture_ecoles |
+| 11 | CENTRE-SUD | 41.7 | 35.0 - 56.8 | 0 % | Modere | ecart_admission_achevement;recul_effectifs |
+| 12 | CENTRE-OUEST | 37.9 | 31.2 - 53.0 | 0 % | Modere | ecart_admission_achevement;disparite_filles_garcons |
+| 13 | CENTRE | 26.4 | 19.7 - 41.5 | 0 % | Faible | ecart_admission_achevement |
 
 ### Classement 2025 (observe)
 
@@ -147,29 +221,11 @@ Les facteurs affiches pour 2026 sont ceux de 2025.
 | 6 | CASCADES | 67.3 | Critique | ecart_admission_achevement;faible_achevement;recul_effectifs |
 | 7 | CENTRE-EST | 67.1 | Critique | ecart_admission_achevement;faible_achevement;fermeture_ecoles |
 | 8 | SUD-OUEST | 56.7 | Modere | ecart_admission_achevement;faible_achevement;fermeture_ecoles |
-| 9 | PLATEAU-CENTRAL | 55.9 | Modere | ecart_admission_achevement;fermeture_ecoles;faible_achevement |
+| 9 | PLATEAU-CENTRAL | 55.9 | Modere | ecart_admission_achevement;fermeture_ecoles;disparite_filles_garcons |
 | 10 | HAUTS-BASSINS | 55.7 | Modere | ecart_admission_achevement;recul_effectifs;fermeture_ecoles |
-| 11 | CENTRE-SUD | 41.7 | Modere | ecart_admission_achevement;recul_effectifs;faible_achevement |
-| 12 | CENTRE-OUEST | 37.9 | Modere | ecart_admission_achevement;disparite_filles_garcons;recul_effectifs |
-| 13 | CENTRE | 26.4 | Faible | ecart_admission_achevement;recul_effectifs;fermeture_ecoles |
-
-### Classement 2026 (prevision)
-
-| Rang | Region | Score | Niveau | Facteurs |
-|---|---|---|---|---|
-| 1 | CENTRE-NORD | 87.7 | Critique | ecart_admission_achevement;faible_achevement;recul_effectifs |
-| 2 | BOUCLE-DU-MOUHOUN | 81.0 | Critique | ecart_admission_achevement;recul_effectifs;faible_achevement |
-| 3 | SAHEL | 75.4 | Critique | faible_achevement;recul_effectifs;fermeture_ecoles |
-| 4 | EST | 72.9 | Critique | faible_achevement;recul_effectifs;fermeture_ecoles |
-| 5 | NORD | 69.7 | Critique | ecart_admission_achevement;faible_achevement;fermeture_ecoles |
-| 6 | CASCADES | 67.3 | Critique | ecart_admission_achevement;faible_achevement;recul_effectifs |
-| 7 | CENTRE-EST | 67.1 | Critique | ecart_admission_achevement;faible_achevement;fermeture_ecoles |
-| 8 | SUD-OUEST | 56.7 | Modere | ecart_admission_achevement;faible_achevement;fermeture_ecoles |
-| 9 | PLATEAU-CENTRAL | 55.9 | Modere | ecart_admission_achevement;fermeture_ecoles;faible_achevement |
-| 10 | HAUTS-BASSINS | 55.7 | Modere | ecart_admission_achevement;recul_effectifs;fermeture_ecoles |
-| 11 | CENTRE-SUD | 41.7 | Modere | ecart_admission_achevement;recul_effectifs;faible_achevement |
-| 12 | CENTRE-OUEST | 37.9 | Modere | ecart_admission_achevement;disparite_filles_garcons;recul_effectifs |
-| 13 | CENTRE | 26.4 | Faible | ecart_admission_achevement;recul_effectifs;fermeture_ecoles |
+| 11 | CENTRE-SUD | 41.7 | Modere | ecart_admission_achevement;recul_effectifs |
+| 12 | CENTRE-OUEST | 37.9 | Modere | ecart_admission_achevement;disparite_filles_garcons |
+| 13 | CENTRE | 26.4 | Faible | ecart_admission_achevement |
 
 ## 8. Limites
 
@@ -181,4 +237,6 @@ Les facteurs affiches pour 2026 sont ceux de 2025.
   depuis le RGPH 2019, incertains dans les regions a forts deplacements.
 - La prevision 2026 suppose la continuite des conditions de 2025.
   Une degradation ou une amelioration securitaire brutale la rendrait fausse.
+- L'intervalle probable est issu de seulement 39 erreurs observees : il donne
+  un ordre de grandeur, pas une garantie statistique.
 - `random_state=42` partout : deux executions donnent le meme resultat.

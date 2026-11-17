@@ -1,0 +1,4 @@
+modele,mae,rmse,justesse_niveau,f1_critique,protocole,pli,lignes_entrainement,lignes_test,bat_la_reference_naive
+reference naive (score N+1 = score N),6.995,9.064,0.821,0.889,fixe,"apprend <= 2022, teste 2023-2025",65,39,-
+regression Ridge (alpha=0.1),8.051,9.98,0.795,0.857,fixe,"apprend <= 2022, teste 2023-2025",65,39,non
+foret aleatoire (max_depth=3),8.221,10.274,0.718,0.75,fixe,"apprend <= 2022, teste 2023-2025",65,39,non

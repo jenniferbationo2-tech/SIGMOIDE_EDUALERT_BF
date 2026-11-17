@@ -68,6 +68,10 @@ COMPOSANTES_VARIATIONS = {
 SEUIL_MODERE = 33
 SEUIL_CRITIQUE = 66
 
+# Les trois modeles compares, dans l'ordre d'affichage.
+MODELES = ("reference naive", "Ridge", "foret aleatoire")
+MARGE_DECISION = 0.3        # point de MAE en faveur de la simplicite
+
 
 # --------------------------------------------------------------------------
 # Chargement et construction des composantes
@@ -121,12 +125,12 @@ def percentiles(composantes: pd.DataFrame) -> pd.DataFrame:
     return composantes.rank(pct=True)
 
 
-def calculer_score(composantes: pd.DataFrame, poids: dict) -> pd.DataFrame:
-    """Score = 100 x somme(poids x percentile), et contribution par composante."""
+def calculer_score(composantes: pd.DataFrame, poids: dict) -> tuple:
+    """Score = 100 x somme(poids x percentile), contributions et rangs."""
     rangs = percentiles(composantes[list(poids)])
     contributions = rangs.mul(pd.Series(poids), axis=1)
     score = contributions.sum(axis=1) * 100
-    return pd.DataFrame({"score": score.round(1)}), contributions
+    return pd.DataFrame({"score": score.round(1)}), contributions, rangs
 
 
 def niveau_de(score: float) -> str:
@@ -138,16 +142,25 @@ def niveau_de(score: float) -> str:
     return "Critique"
 
 
-def principaux_facteurs(contributions: pd.DataFrame, nombre: int = 3) -> pd.Series:
+def principaux_facteurs(contributions: pd.DataFrame, rangs: pd.DataFrame,
+                        nombre: int = 3, seuil_percentile: float = 0.5) -> pd.Series:
     """Les 2 ou 3 composantes qui contribuent le plus, en codes separes par « ; ».
 
-    Une composante dont la contribution est nulle n'est pas citee ; on en
-    garde donc 2 si la troisieme n'apporte rien.
+    Un facteur n'est cite que si le percentile de sa composante atteint
+    `seuil_percentile` (par defaut la mediane du panel) : sinon on afficherait
+    comme « facteur de risque » une composante ou la region se situe parmi les
+    meilleures du pays. Si aucune composante ne passe le filtre, la region
+    n'a pas de facteur marquant.
     """
     def pour_une_ligne(ligne: pd.Series) -> str:
-        ordonnees = ligne.sort_values(ascending=False)
-        retenus = [code for code, valeur in ordonnees.items() if valeur > 0][:nombre]
-        return ";".join(retenus)
+        cle = ligne.name
+        eligibles = [code for code in ligne.index
+                     if rangs.loc[cle, code] >= seuil_percentile
+                     and ligne[code] > 0]
+        retenus = sorted(eligibles, key=lambda code: ligne[code], reverse=True)
+        if not retenus:
+            return "aucun_facteur_marquant"
+        return ";".join(retenus[:nombre])
     return contributions.apply(pour_une_ligne, axis=1)
 
 
@@ -223,6 +236,114 @@ def choisir_alpha(entrainement: pd.DataFrame, colonnes: list[str]) -> float:
     return meilleur
 
 
+def entrainer_et_prevoir(nom: str, entrainement: pd.DataFrame,
+                         evaluation: pd.DataFrame, colonnes: list[str]) -> np.ndarray:
+    """Entraine un des trois modeles et rend ses previsions sur `evaluation`.
+
+    Les hyperparametres sont choisis a l'interieur du jeu d'entrainement
+    fourni : aucun pli ne regarde ses propres donnees de test.
+    """
+    if nom == "reference naive":
+        return evaluation["score"].to_numpy()
+    if nom == "Ridge":
+        alpha = choisir_alpha(entrainement, colonnes)
+        echelle = StandardScaler().fit(entrainement[colonnes])
+        modele = Ridge(alpha=alpha, random_state=GRAINE)
+        modele.fit(standardiser(echelle, entrainement, colonnes),
+                   entrainement["score_cible"])
+        return modele.predict(standardiser(echelle, evaluation, colonnes))
+    modele = RandomForestRegressor(n_estimators=300, max_depth=3,
+                                   random_state=GRAINE, n_jobs=1)
+    modele.fit(entrainement[colonnes], entrainement["score_cible"])
+    return modele.predict(evaluation[colonnes])
+
+
+def validation_glissante(paires: pd.DataFrame, colonnes: list[str],
+                         plis: tuple = ((2022, 2023), (2023, 2024), (2024, 2025))
+                         ) -> tuple[pd.DataFrame, dict]:
+    """Validation glissante : apprendre sur les cibles <= A, tester sur l'annee B.
+
+    Rend le detail par pli et, pour chaque modele, la liste de ses erreurs
+    (reel - prevu) sur l'ensemble des plis : elles servent a estimer
+    l'incertitude de la prevision 2026.
+    """
+    lignes, erreurs = [], {nom: [] for nom in MODELES}
+    for derniere_apprise, annee_testee in plis:
+        entrainement = paires[paires["annee"] + 1 <= derniere_apprise]
+        test = paires[paires["annee"] + 1 == annee_testee]
+        if entrainement.empty or test.empty:
+            continue
+        for nom in MODELES:
+            prevu = entrainer_et_prevoir(nom, entrainement, test, colonnes)
+            reel = test["score_cible"].to_numpy()
+            lignes.append({
+                "protocole": "glissante",
+                "pli": f"apprend <= {derniere_apprise}, teste {annee_testee}",
+                "modele": nom,
+                "lignes_entrainement": len(entrainement),
+                "lignes_test": len(test),
+                **mesures(reel, prevu)})
+            erreurs[nom].extend((reel - prevu).tolist())
+    return pd.DataFrame(lignes), erreurs
+
+
+def choisir_modele_2026(detail_glissant: pd.DataFrame,
+                        marge: float = 0.3) -> tuple[str, pd.DataFrame, str]:
+    """Regle de decision, fixee avant de regarder les resultats.
+
+    Le modele retenu est celui qui a la plus faible MAE moyenne sur les trois
+    plis glissants. Si son avance sur la reference naive est inferieure a
+    `marge` point de MAE, on garde la reference naive, plus simple.
+    """
+    moyennes = (detail_glissant.groupby("modele")
+                .agg(mae_moyenne=("mae", "mean"),
+                     rmse_moyenne=("rmse", "mean"),
+                     justesse_moyenne=("justesse_niveau", "mean"))
+                .sort_values("mae_moyenne"))
+    meilleur = moyennes.index[0]
+    mae_naive = float(moyennes.loc["reference naive", "mae_moyenne"])
+    mae_meilleur = float(moyennes.loc[meilleur, "mae_moyenne"])
+    if meilleur == "reference naive":
+        raison = (f"la reference naive a la plus faible MAE moyenne glissante "
+                  f"({mae_naive:.3f})")
+        return "reference naive", moyennes, raison
+    if mae_naive - mae_meilleur < marge:
+        raison = (f"{meilleur} a la meilleure MAE moyenne glissante "
+                  f"({mae_meilleur:.3f}) mais son avance sur la reference naive "
+                  f"({mae_naive:.3f}) est de {mae_naive - mae_meilleur:.3f} point, "
+                  f"soit moins que la marge de {marge} fixee d'avance : on garde "
+                  f"la reference naive, plus simple")
+        return "reference naive", moyennes, raison
+    raison = (f"{meilleur} a la plus faible MAE moyenne glissante "
+              f"({mae_meilleur:.3f} contre {mae_naive:.3f} pour la reference "
+              f"naive), avec une avance de {mae_naive - mae_meilleur:.3f} point "
+              f"superieure a la marge de {marge} fixee d'avance")
+    return meilleur, moyennes, raison
+
+
+def incertitude_2026(prevision: pd.Series, erreurs: list[float]) -> pd.DataFrame:
+    """Intervalle probable et probabilite d'etre critique, par region.
+
+    L'incertitude vient de la distribution empirique des erreurs du modele
+    retenu sur les plis glissants : on l'applique au score prevu.
+    """
+    serie_erreurs = np.array(erreurs, dtype=float)
+    bas, haut = np.quantile(serie_erreurs, [0.10, 0.90])
+    lignes = []
+    for region_code, score_prevu in prevision.items():
+        tirages = score_prevu + serie_erreurs
+        lignes.append({
+            "region_code": region_code,
+            "annee": ANNEE_PREVISION,
+            "score": round(float(score_prevu), 1),
+            "score_bas": round(float(min(max(score_prevu + bas, 0), 100)), 1),
+            "score_haut": round(float(min(max(score_prevu + haut, 0), 100)), 1),
+            "proba_critique": round(
+                float((tirages >= SEUIL_CRITIQUE).mean()), 3),
+        })
+    return pd.DataFrame(lignes).sort_values("score", ascending=False)
+
+
 # --------------------------------------------------------------------------
 # Analyse de sensibilite
 # --------------------------------------------------------------------------
@@ -249,7 +370,7 @@ def sensibilite(composantes: pd.DataFrame, reference: pd.DataFrame,
 
     # 1. Poids egaux
     egaux = {code: 1 / len(POIDS) for code in POIDS}
-    scores_egaux, _ = calculer_score(composantes, egaux)
+    scores_egaux, _, _ = calculer_score(composantes, egaux)
     comparer("poids_egaux", "toutes les composantes a poids identique",
              scores_egaux["score"])
 
@@ -258,13 +379,13 @@ def sensibilite(composantes: pd.DataFrame, reference: pd.DataFrame,
         restants = {c: p for c, p in POIDS.items() if c != exclue}
         total = sum(restants.values())
         restants = {c: p / total for c, p in restants.items()}
-        scores_sans, _ = calculer_score(composantes, restants)
+        scores_sans, _, _ = calculer_score(composantes, restants)
         comparer(f"sans_{exclue}", f"composante {exclue} retiree",
                  scores_sans["score"])
 
     # 3. Variante ecartee : variations annuelles au lieu des reculs depuis le pic
-    scores_variations, _ = calculer_score(composantes_variations,
-                                          COMPOSANTES_VARIATIONS)
+    scores_variations, _, _ = calculer_score(composantes_variations,
+                                             COMPOSANTES_VARIATIONS)
     comparer("avec_variations_annuelles",
              "variante ecartee : variations annuelles au lieu du recul depuis le pic",
              scores_variations["score"])
@@ -289,9 +410,9 @@ def main() -> None:
               "(13 regions x 2017-2025)")
 
     # --- Indice composite ---
-    scores, contributions = calculer_score(composantes, POIDS)
+    scores, contributions, rangs = calculer_score(composantes, POIDS)
     scores["niveau"] = scores["score"].map(niveau_de)
-    scores["facteurs"] = principaux_facteurs(contributions)
+    scores["facteurs"] = principaux_facteurs(contributions, rangs)
 
     repartition = (scores.reset_index()
                    .pivot_table(index="annee", columns="niveau",
@@ -333,17 +454,54 @@ def main() -> None:
                       **mesures(test["score_cible"].to_numpy(), prevu_foret)})
     previsions["foret aleatoire"] = prevu_foret
 
-    metriques = pd.DataFrame(resultats)
-    metriques["lignes_entrainement"] = len(entrainement)
-    metriques["lignes_test"] = len(test)
-    mae_naive = metriques.loc[0, "mae"]
-    metriques["bat_la_reference_naive"] = np.where(
-        metriques["mae"] < mae_naive, "oui",
-        np.where(metriques["modele"].str.startswith("reference"), "-", "non"))
-    retenu = metriques.loc[metriques["mae"].idxmin(), "modele"]
-    metriques["retenu"] = np.where(metriques["modele"] == retenu, "oui", "non")
-    metriques.to_csv(SORTIE / "metriques_modeles.csv", index=False,
-                     encoding="utf-8")
+    metriques_fixe = pd.DataFrame(resultats)
+    metriques_fixe["protocole"] = "fixe"
+    metriques_fixe["pli"] = "apprend <= 2022, teste 2023-2025"
+    metriques_fixe["lignes_entrainement"] = len(entrainement)
+    metriques_fixe["lignes_test"] = len(test)
+    mae_naive = metriques_fixe.loc[0, "mae"]
+    metriques_fixe["bat_la_reference_naive"] = np.where(
+        metriques_fixe["mae"] < mae_naive, "oui",
+        np.where(metriques_fixe["modele"].str.startswith("reference"), "-", "non"))
+
+    # --- Validation glissante (3 plis) et regle de decision ---
+    detail_glissant, erreurs_glissantes = validation_glissante(paires, colonnes)
+    retenu_court, moyennes_glissantes, raison = choisir_modele_2026(
+        detail_glissant, MARGE_DECISION)
+    mae_naive_glissante = float(
+        moyennes_glissantes.loc["reference naive", "mae_moyenne"])
+
+    # Noms longs pour l'affichage, noms courts pour la mecanique.
+    noms_longs = {
+        "reference naive": "reference naive (score N+1 = score N)",
+        "Ridge": f"regression Ridge (alpha={alpha})",
+        "foret aleatoire": "foret aleatoire (max_depth=3)",
+    }
+    retenu = noms_longs[retenu_court]
+
+    detail_glissant_affiche = detail_glissant.copy()
+    mae_reference_par_pli = (
+        detail_glissant[detail_glissant["modele"] == "reference naive"]
+        .set_index("pli")["mae"])
+    detail_glissant_affiche["bat_la_reference_naive"] = [
+        "-" if ligne.modele == "reference naive"
+        else ("oui" if ligne.mae < mae_reference_par_pli[ligne.pli] else "non")
+        for ligne in detail_glissant.itertuples()]
+    detail_glissant_affiche["modele"] = detail_glissant_affiche["modele"].map(
+        noms_longs)
+
+    metriques = pd.concat([metriques_fixe, detail_glissant_affiche],
+                          ignore_index=True)
+    metriques["retenu_pour_2026"] = np.where(
+        metriques["modele"] == retenu, "oui", "non")
+    colonnes_metriques = ["protocole", "pli", "modele", "mae", "rmse",
+                          "justesse_niveau", "f1_critique",
+                          "lignes_entrainement", "lignes_test",
+                          "bat_la_reference_naive", "retenu_pour_2026"]
+    metriques[colonnes_metriques].to_csv(SORTIE / "metriques_modeles.csv",
+                                         index=False, encoding="utf-8")
+    metriques_fixe.to_csv(SORTIE / "metriques_modeles_protocole_fixe.csv",
+                          index=False, encoding="utf-8")
 
     # --- Matrice de confusion des niveaux (modele retenu) ---
     nom_retenu = ("reference naive" if retenu.startswith("reference")
@@ -431,6 +589,12 @@ def main() -> None:
                 modele_final.predict(entrees[colonnes]), index=entrees.index)
         methode_2026 = f"{retenu}, reentraine sur les {len(paires)} paires"
 
+    # --- Incertitude de la prevision 2026 ---
+    incertitude = incertitude_2026(prevision_2026,
+                                   erreurs_glissantes[retenu_court])
+    incertitude.to_csv(SORTIE / "prevision_2026_incertitude.csv", index=False,
+                       encoding="utf-8")
+
     # --- risque.csv : contrat avec l'API ---
     observe = scores.reset_index()
     observe["est_prevision"] = 0
@@ -453,36 +617,53 @@ def main() -> None:
     risque.to_csv(SORTIE / "risque.csv", index=False, encoding="utf-8")
 
     # --- Rapport ---
-    ecrire_rapport(metriques, matrice, importance, sensible, scores, risque,
-                   retenu, mae_naive, methode_2026, repartition, alpha,
-                   len(entrainement), len(test), len(paires))
+    ecrire_rapport(metriques_fixe, detail_glissant_affiche, moyennes_glissantes,
+                   matrice, importance, sensible, risque, incertitude,
+                   retenu, mae_naive, mae_naive_glissante, raison, methode_2026,
+                   repartition, len(entrainement), len(test), len(paires))
 
-    print(f"risque.csv              : {len(risque)} lignes "
+    print(f"risque.csv                     : {len(risque)} lignes "
           f"(observe 2017-2025 + prevision {ANNEE_PREVISION})")
-    print(f"metriques_modeles.csv   : {len(metriques)} modeles compares")
-    print(f"importance_variables.csv: {len(importance)} lignes")
-    print(f"sensibilite_poids.csv   : {len(sensible)} variantes")
-    print(f"previsions_test.csv     : {len(details)} lignes de test")
+    print(f"metriques_modeles.csv          : {len(metriques)} lignes "
+          "(2 protocoles)")
+    print(f"prevision_2026_incertitude.csv : {len(incertitude)} regions")
+    print(f"importance_variables.csv       : {len(importance)} lignes")
+    print(f"sensibilite_poids.csv          : {len(sensible)} variantes")
+    print(f"previsions_test.csv            : {len(details)} lignes de test")
     print()
-    print("Modele retenu :", retenu)
-    print(metriques[["modele", "mae", "rmse", "justesse_niveau", "f1_critique",
-                     "bat_la_reference_naive"]].to_string(index=False))
+    print("--- Protocole fixe (apprend <= 2022, teste 2023-2025) ---")
+    print(metriques_fixe[["modele", "mae", "rmse", "justesse_niveau",
+                          "f1_critique", "bat_la_reference_naive"]]
+          .to_string(index=False))
+    print()
+    print("--- Validation glissante : detail par pli ---")
+    print(detail_glissant_affiche[["pli", "modele", "mae", "rmse",
+                                   "justesse_niveau", "bat_la_reference_naive"]]
+          .to_string(index=False))
+    print()
+    print("--- Validation glissante : MAE moyenne sur les 3 plis ---")
+    print(moyennes_glissantes.to_string())
+    print()
+    print("Modele retenu pour 2026 :", retenu)
+    print("Raison :", raison)
     print()
     print("Repartition des niveaux par annee :")
     print(repartition.to_string())
 
-
-def ecrire_rapport(metriques, matrice, importance, sensible, scores, risque,
-                   retenu, mae_naive, methode_2026, repartition, alpha,
-                   n_entrainement, n_test, n_paires) -> None:
-    mae_retenu = float(metriques.loc[metriques["modele"] == retenu, "mae"].iloc[0])
-    bat = mae_retenu < mae_naive
+def ecrire_rapport(metriques_fixe, detail_glissant, moyennes_glissantes,
+                   matrice, importance, sensible, risque, incertitude,
+                   retenu, mae_naive, mae_naive_glissante, raison, methode_2026,
+                   repartition, n_entrainement, n_test, n_paires) -> None:
+    mae_retenu_glissante = float(
+        moyennes_glissantes["mae_moyenne"].min())
     classement_2025 = (risque[risque["annee"] == 2025]
                        .sort_values("score", ascending=False))
-    classement_2026 = (risque[risque["annee"] == 2026]
-                       .sort_values("score", ascending=False))
-    top_importance = (importance[importance["modele"] == "Ridge"]
-                      .head(5))
+    classement_2026 = (risque[risque["annee"] == ANNEE_PREVISION]
+                       .sort_values("score", ascending=False)
+                       .merge(incertitude[["region_code", "score_bas",
+                                           "score_haut", "proba_critique"]],
+                              on="region_code", how="left"))
+    top_importance = importance[importance["modele"] == "Ridge"].head(5)
 
     lignes = [
         "# Rapport du modele de risque - etape 04 (EduAlert BF)",
@@ -504,7 +685,8 @@ def ecrire_rapport(metriques, matrice, importance, sensible, scores, risque,
         "|---|---|---|---|",
     ]
     for code, (poids, formule) in COMPOSANTES.items():
-        lignes.append(f"| {code.replace('_', ' ')} | `{formule}` | {poids:.2f} | `{code}` |")
+        lignes.append(f"| {code.replace('_', ' ')} | `{formule}` | {poids:.2f} "
+                      f"| `{code}` |")
     lignes += [
         "",
         "Normalisation : rang percentile de chaque composante sur l'ensemble du panel",
@@ -515,6 +697,13 @@ def ecrire_rapport(metriques, matrice, importance, sensible, scores, risque,
         "Score = 100 x somme(poids x percentile), arrondi a 1 decimale.",
         f"Niveaux : `Faible` < {SEUIL_MODERE}, `Modere` {SEUIL_MODERE}-{SEUIL_CRITIQUE}, "
         f"`Critique` >= {SEUIL_CRITIQUE}.",
+        "",
+        "**Facteurs affiches** : une composante n'est citee comme facteur que si son",
+        "percentile atteint 0,50, c'est-a-dire si la region se situe au-dessus de la",
+        "mediane nationale sur cette composante. Sans ce filtre, une region pouvait",
+        "voir citer comme « facteur de risque » une composante ou elle fait partie des",
+        "meilleures du pays. Au maximum 3 facteurs, tries par contribution. Si aucune",
+        "composante ne passe le filtre : `aucun_facteur_marquant`.",
         "",
         "### Pourquoi le recul depuis le pic plutot que la variation annuelle",
         "",
@@ -533,44 +722,76 @@ def ecrire_rapport(metriques, matrice, importance, sensible, scores, risque,
         repartition.to_string(),
         "```",
         "",
-        "## 4. Modeles de prevision N+1",
+        "## 4. Modeles de prevision N+1 : deux protocoles de validation",
         "",
-        f"Paires annee N -> score N+1 : {n_paires} observations au total,",
-        f"{n_entrainement} en entrainement (cibles <= 2022) et {n_test} en test",
-        "(cibles 2023, 2024 et 2025). La validation est **temporelle** : aucun melange",
-        "aleatoire des annees, le modele ne voit jamais le futur.",
+        f"Paires annee N -> score N+1 : {n_paires} observations au total. La validation",
+        "est toujours **temporelle** : aucun melange aleatoire des annees, le modele ne",
+        "voit jamais le futur. Les hyperparametres sont choisis a l'interieur de chaque",
+        "jeu d'entrainement.",
+        "",
+        "### Regle de decision, fixee avant de regarder les resultats",
+        "",
+        "> Le modele retenu pour la prevision 2026 est celui qui obtient la plus faible",
+        f"> MAE moyenne sur les trois plis glissants. Si son avance sur la reference",
+        f"> naive est inferieure a {MARGE_DECISION} point de MAE, on garde la reference",
+        "> naive, car elle est plus simple et plus previsible.",
+        "",
+        "### 4.1 Protocole fixe (apprend sur les cibles <= 2022, teste 2023-2025)",
+        "",
+        f"{n_entrainement} paires en entrainement, {n_test} en test.",
         "",
         "```",
-        metriques[["modele", "mae", "rmse", "justesse_niveau", "f1_critique",
-                   "bat_la_reference_naive", "retenu"]].to_string(index=False),
+        metriques_fixe[["modele", "mae", "rmse", "justesse_niveau", "f1_critique",
+                        "bat_la_reference_naive"]].to_string(index=False),
         "```",
         "",
-        f"**Modele retenu : {retenu}** (meilleure MAE sur le test).",
+        "### 4.2 Validation glissante (3 plis)",
+        "",
+        "Chaque pli reproduit la situation reelle : on apprend sur tout le passe",
+        "disponible et on prevoit l'annee suivante.",
+        "",
+        "```",
+        detail_glissant[["pli", "modele", "mae", "rmse", "justesse_niveau",
+                         "bat_la_reference_naive"]].to_string(index=False),
+        "```",
+        "",
+        "MAE moyenne sur les trois plis :",
+        "",
+        "```",
+        moyennes_glissantes.to_string(),
+        "```",
+        "",
+        f"### 4.3 Modele retenu : {retenu}",
+        "",
+        f"Raison (application de la regle ci-dessus) : {raison}.",
         "",
     ]
-    if bat:
+    if retenu.startswith("reference"):
         lignes += [
-            f"Il bat la reference naive : MAE {mae_retenu} contre {mae_naive}, soit "
-            f"{(1 - mae_retenu / mae_naive) * 100:.1f} % d'erreur en moins.",
+            "**Honnetement : aucun modele appris ne bat la reference naive**, ni en",
+            "protocole fixe, ni en validation glissante. Deux raisons, et il faut les",
+            "dire :",
+            "",
+            "1. **Le choc de 2022/23 est un changement de regime.** Les modeles",
+            "   apprennent sur des annees ou le systeme scolaire se degrade lentement,",
+            "   puis doivent prevoir l'apres-effondrement. Les relations apprises ne",
+            "   tiennent plus.",
+            f"2. **{n_paires} observations, c'est tres peu** pour apprendre une relation",
+            "   a 9 variables. Le score d'une region est par ailleurs tres stable d'une",
+            "   annee a l'autre, ce qui rend la persistance difficile a battre.",
+            "",
+            "Conclusion assumee : pour la prevision 2026, on garde la methode la plus",
+            "simple et la plus fiable sur les deux protocoles, plutot qu'un modele plus",
+            "savant mais moins juste. L'analyse d'importance des variables confirme ce",
+            "diagnostic : le score de l'annee N explique a lui seul l'essentiel de la",
+            "prevision.",
         ]
     else:
         lignes += [
-            f"**Honnetement : aucun modele appris ne bat la reference naive** "
-            f"(MAE {mae_retenu} contre {mae_naive} pour la reference).",
-            "",
-            "Deux raisons, et il faut les dire :",
-            "",
-            "1. **Le choc de 2022/23 est un changement de regime.** Le modele est",
-            "   entraine sur des annees ou le systeme scolaire se degrade lentement,",
-            "   puis teste sur l'apres-effondrement. Les relations apprises ne tiennent",
-            "   plus.",
-            f"2. **{n_paires} observations, c'est tres peu** pour apprendre une relation",
-            "   a 9 variables. Le score d'une region est par ailleurs tres stable d'une",
-            "   annee a l'autre, ce qui rend la reference naive difficile a battre.",
-            "",
-            "Conclusion assumee : pour la prevision 2026, on garde la methode la plus",
-            "simple et la plus fiable sur le test, plutot qu'un modele plus savant mais",
-            "moins juste.",
+            f"Il bat la reference naive de "
+            f"{mae_naive_glissante - mae_retenu_glissante:.3f} point de MAE moyenne",
+            f"({mae_retenu_glissante:.3f} contre {mae_naive_glissante:.3f}), au-dela de",
+            f"la marge de {MARGE_DECISION} fixee d'avance.",
         ]
     lignes += [
         "",
@@ -599,12 +820,31 @@ def ecrire_rapport(metriques, matrice, importance, sensible, scores, risque,
         "",
         "Lecture : une correlation de Spearman proche de 1 signifie que le classement",
         "des regions ne depend pas du detail des poids. C'est le cas ici, ce qui rend",
-        "l'indice robuste a ce choix.",
+        "l'indice robuste a ce choix. La variante `avec_variations_annuelles` est la",
+        "plus eloignee : c'est la version ecartee de l'indice, et l'ecart montre que",
+        "le choix du recul depuis le pic change reellement le classement.",
         "",
-        f"## 7. Prevision {ANNEE_PREVISION}",
+        f"## 7. Prevision {ANNEE_PREVISION} et son incertitude",
         "",
         f"Methode : {methode_2026}.",
         "Les facteurs affiches pour 2026 sont ceux de 2025.",
+        "",
+        "L'incertitude est estimee a partir de la distribution des erreurs du modele",
+        "retenu sur les trois plis glissants : `score_bas` et `score_haut` sont les",
+        "quantiles 10 % et 90 % de ces erreurs appliques au score prevu (bornes a",
+        "0 et 100), et `proba_critique` est la part des erreurs observees qui",
+        f"amenerait la region a {SEUIL_CRITIQUE} ou plus.",
+        "",
+        "| Rang | Region | Score | Intervalle probable | Proba. critique | Niveau | Facteurs |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for rang, ligne in enumerate(classement_2026.itertuples(), start=1):
+        lignes.append(
+            f"| {rang} | {ligne.region_code} | {ligne.score} "
+            f"| {ligne.score_bas} - {ligne.score_haut} "
+            f"| {ligne.proba_critique * 100:.0f} % | {ligne.niveau} "
+            f"| {ligne.facteurs} |")
+    lignes += [
         "",
         "### Classement 2025 (observe)",
         "",
@@ -612,16 +852,6 @@ def ecrire_rapport(metriques, matrice, importance, sensible, scores, risque,
         "|---|---|---|---|---|",
     ]
     for rang, ligne in enumerate(classement_2025.itertuples(), start=1):
-        lignes.append(f"| {rang} | {ligne.region_code} | {ligne.score} | "
-                      f"{ligne.niveau} | {ligne.facteurs} |")
-    lignes += [
-        "",
-        f"### Classement {ANNEE_PREVISION} (prevision)",
-        "",
-        "| Rang | Region | Score | Niveau | Facteurs |",
-        "|---|---|---|---|---|",
-    ]
-    for rang, ligne in enumerate(classement_2026.itertuples(), start=1):
         lignes.append(f"| {rang} | {ligne.region_code} | {ligne.score} | "
                       f"{ligne.niveau} | {ligne.facteurs} |")
     lignes += [
@@ -636,6 +866,8 @@ def ecrire_rapport(metriques, matrice, importance, sensible, scores, risque,
         "  depuis le RGPH 2019, incertains dans les regions a forts deplacements.",
         f"- La prevision {ANNEE_PREVISION} suppose la continuite des conditions de 2025.",
         "  Une degradation ou une amelioration securitaire brutale la rendrait fausse.",
+        "- L'intervalle probable est issu de seulement 39 erreurs observees : il donne",
+        "  un ordre de grandeur, pas une garantie statistique.",
         "- `random_state=42` partout : deux executions donnent le meme resultat.",
         "",
     ]
