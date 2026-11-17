@@ -18,6 +18,23 @@ docs/        documentation, dictionnaire des variables, journal de nettoyage
 - Membre 1 : data et backend (API, intégration cartographique, base de données)
 - Membre 2 : data science, analyse, frontend
 
+## Version en ligne
+
+**Adresse : `[à compléter après la création du service Render]`**
+
+> **Première ouverture lente (environ 30 s), service gratuit en veille.** L'offre
+> gratuite de Render met l'instance en sommeil après une période sans visite : la
+> première requête la réveille et met environ 30 secondes à répondre. Les suivantes
+> sont immédiates. Ce n'est pas une panne — laissez la page charger.
+
+La mise en ligne est décrite par `render.yaml`, à la racine du dépôt : service web
+Python, construction par `pip install -r requirements.txt && python -m app.charger`,
+démarrage par `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. La base SQLite n'est
+pas versionnée : elle est reconstruite à chaque déploiement depuis les CSV du dépôt.
+
+Une fois le service en ligne, trois adresses à vérifier :
+`/app/` (la carte), `/sante` (état du service) et `/docs` (documentation de l'API).
+
 ## Reproduction
 
 **Prérequis :** Python 3.11 ou plus récent.
