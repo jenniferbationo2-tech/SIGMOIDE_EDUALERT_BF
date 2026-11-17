@@ -3,3 +3,6 @@ uvicorn
 pandas
 shapely
 fpdf2
+openpyxl
+scikit-learn
+matplotlib
