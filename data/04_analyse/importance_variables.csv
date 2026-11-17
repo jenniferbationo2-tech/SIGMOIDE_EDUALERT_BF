@@ -1,0 +1,21 @@
+modele,variable,importance_permutation,ecart_type,coefficient_standardise
+Ridge,score,10.927,1.4418,10.1119
+Ridge,recul_effectifs,3.3516,0.6299,-3.9272
+Ridge,fermeture_ecoles,2.4092,0.6884,3.1807
+Ridge,faible_scolarisation,1.2741,0.5091,3.0562
+Ridge,taux_reussite_cep,0.335,0.2258,-1.6756
+Ridge,eleves_par_ecole,0.2359,0.1599,-0.8909
+Ridge,faible_achevement,0.065,0.0297,-0.1555
+Ridge,taux_brut_admission,0.0272,0.0495,0.2575
+Ridge,disparite_filles_garcons,-0.0898,0.1409,0.8731
+Ridge,ecart_admission_achevement,-0.1138,0.0508,0.2633
+foret aleatoire,score,8.362,1.0703,
+foret aleatoire,disparite_filles_garcons,0.3208,0.1676,
+foret aleatoire,fermeture_ecoles,0.2937,0.0817,
+foret aleatoire,faible_achevement,0.2548,0.1542,
+foret aleatoire,eleves_par_ecole,0.1624,0.0476,
+foret aleatoire,taux_reussite_cep,0.1126,0.1192,
+foret aleatoire,faible_scolarisation,0.0967,0.0573,
+foret aleatoire,recul_effectifs,0.0496,0.0356,
+foret aleatoire,taux_brut_admission,0.0369,0.0549,
+foret aleatoire,ecart_admission_achevement,-0.0391,0.0542,

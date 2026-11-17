@@ -1,0 +1,4 @@
+modele,mae,rmse,justesse_niveau,f1_critique,lignes_entrainement,lignes_test,bat_la_reference_naive,retenu
+reference naive (score N+1 = score N),6.995,9.064,0.821,0.889,65,39,-,oui
+regression Ridge (alpha=0.1),8.051,9.98,0.795,0.857,65,39,non,non
+foret aleatoire (max_depth=3),8.221,10.274,0.718,0.75,65,39,non,non
