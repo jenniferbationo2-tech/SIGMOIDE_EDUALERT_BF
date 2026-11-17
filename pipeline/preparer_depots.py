@@ -74,7 +74,10 @@ DEPOTS = [
 LIVRABLES = ["data/05_interpretation/fiches", "data/05_interpretation/graphiques",
              "data/05_interpretation/captures"]
 # Code : un seul zip (backend + pipeline + scripts de lancement)
-CODE = ["backend/app", "backend/donnees_exemple", "backend/requirements.txt", "data/03_transformation",
+# Tout ce qu'il faut pour relancer l'application complete sur un poste vierge :
+# source DGESS (le pipeline se rejoue), indicateurs, scores de risque et interface web.
+CODE = ["backend/app", "backend/donnees_exemple", "backend/requirements.txt",
+        "data/00_sources", "data/03_transformation", "data/04_analyse", "frontend",
         "pipeline", "run.bat", "run.sh", "README.md"]
 EXCLURE = {"__pycache__", ".venv", "edualert.sqlite"}
 
