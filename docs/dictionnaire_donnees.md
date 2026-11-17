@@ -64,22 +64,41 @@ Origine des données chargées (`reel` ou `FICTIF`), exposée par `GET /sante`.
 
 ## 4. Indicateurs (noms à utiliser dans `indicateurs.csv`)
 
-| `indicateur` | Définition | Source DGESS | Unité |
-|---|---|---|---|
-| `effectif_prescolaire` | Élèves inscrits au préscolaire | onglet PRESCOLAIRE | élèves |
-| `effectif_primaire` | Élèves inscrits au primaire | Feuil1 | élèves |
-| `nouveaux_inscrits_cp1` | Nouveaux inscrits au CP1 | Feuil5 | élèves |
-| `taux_brut_admission` | TBA : nouveaux inscrits CP1 / population de 6 ans | Feuil6 | % |
-| `taux_brut_scolarisation` | TBS : effectif primaire / population 6-11 ans | Feuil7 | % |
-| `taux_achevement` | TAP : admis en CM2 non redoublants / population de 11 ans | Feuil8 | % |
-| `taux_reussite_cep` | Admis au CEP / présentés | Feuil9 | % |
-| `ips_tbs` | Indice de parité F/G du TBS (recalculé) | Feuil11 | ratio |
-| `nombre_ecoles` | Écoles primaires (public + privé) | Feuil13 | écoles |
-| `variation_effectif_primaire` | (effectif N − effectif N−1) / effectif N−1 | calculé | % |
-| `eleves_par_ecole` | effectif primaire / nombre d'écoles | calculé | élèves |
+| `indicateur` | Définition | Source DGESS | Unité | Sexes |
+|---|---|---|---|---|
+| `effectif_prescolaire` | Élèves inscrits au préscolaire | onglet PRESCOLAIRE (Tableau 1) | élèves | G/F/T |
+| `effectif_primaire` | Élèves inscrits au primaire | Feuil1 | élèves | G/F/T |
+| `nouveaux_inscrits_cp1` | Nouveaux inscrits au CP1 | Feuil5 | élèves | G/F/T |
+| `taux_brut_admission` | TBA : nouveaux inscrits CP1 / population de 6 ans | Feuil6 | % | G/F/T |
+| `taux_brut_scolarisation` | TBS : effectif primaire / population 6-11 ans | Feuil7 | % | G/F/T |
+| `taux_achevement` | TAP : admis en CM2 non redoublants / population de 11 ans | Feuil8 | % | G/F/T |
+| `taux_reussite_cep` | Admis au CEP / présentés | Feuil9 | % | G/F/T |
+| `ips_tba` | Indice de parité F/G du TBA : TBA des filles / TBA des garçons (recalculé depuis Feuil6, les formules de Feuil10 ne sont pas lues) | calculé (Feuil6) | ratio | T |
+| `ips_tbs` | Indice de parité F/G du TBS : TBS des filles / TBS des garçons (recalculé depuis Feuil7, les formules de Feuil11 ne sont pas lues) | calculé (Feuil7) | ratio | T |
+| `ips_tap` | Indice de parité F/G du TAP : TAP des filles / TAP des garçons (recalculé depuis Feuil8, les formules de Feuil12 ne sont pas lues) | calculé (Feuil8) | ratio | T |
+| `nombre_ecoles` | Écoles primaires, tous statuts (public + privé) | Feuil13 | écoles | T |
+| `nombre_ecoles_public` | Écoles primaires publiques | Feuil13 | écoles | T |
+| `nombre_ecoles_prive` | Écoles primaires privées | Feuil13 | écoles | T |
+| `variation_effectif_primaire` | (effectif N − effectif N−1) / effectif N−1 × 100. Une chute traduit des élèves sortis du système (fermetures, déplacements de population) | calculé (Feuil1) | % | G/F/T |
+| `variation_nombre_ecoles` | (écoles N − écoles N−1) / écoles N−1 × 100. Mesure les fermetures d'écoles liées à l'insécurité | calculé (Feuil13) | % | T |
+| `eleves_par_ecole` | effectif primaire / nombre d'écoles. Mesure la pression sur l'offre scolaire restante | calculé (Feuil1, Feuil13) | élèves par école | T |
+| `ecart_tba_tap` | TBA − TAP, en points. Un écart large signale que beaucoup d'élèves entrent mais que peu achèvent : déperdition en cours de cycle | calculé (Feuil6, Feuil8) | points de % | T |
+| `variation_taux_achevement` | TAP N − TAP N−1, en points. Mesure la dégradation de la rétention | calculé (Feuil8) | points de % | T |
+
+Les indicateurs de variation n'existent pas pour 2016 (pas d'année N−1) : aucune ligne n'est écrite
+pour cette année-là, plutôt qu'une ligne à valeur vide.
 
 Les indicateurs du Data Pack (PDI, incidents, population INSD, enseignants) s'ajoutent avec la même règle :
 nom en minuscules, sans accent, mots séparés par `_`, et une ligne dans ce tableau.
+
+### 4.1 Contexte national (hors `indicateurs.csv`)
+
+| Fichier | Contenu | Formule | Source |
+|---|---|---|---|
+| `data/03_transformation/survie_cohortes_national.csv` | Taux de survie apparent du primaire, national, par sexe | effectif CM2 de l'année N+5 / effectif CP1 de l'année N × 100 | Feuil4 |
+
+C'est le seul proxy d'abandon par cohorte disponible : il est *apparent* (il ne suit pas les élèves
+un par un) et mêle abandons, redoublements et migrations. Il sert à la documentation, pas à la carte.
 
 ## 5. Règles de qualité appliquées au chargement
 
