@@ -1,0 +1,499 @@
+/* EduAlert BF - application web (Membre 2)
+   Style sobre et institutionnel : fond blanc casse, texte gris tres fonce,
+   une seule couleur d'accent (bleu ardoise). Pas de degrade, pas d'ombre
+   decorative, pas d'icone d'agrement. */
+
+:root {
+  --fond: #FAFAF8;
+  --fond-bloc: #FFFFFF;
+  --texte: #1C2024;
+  --texte-doux: #525A62;
+  --trait: #D8DCE0;
+  --trait-fort: #B4BBC2;
+  --accent: #35506B;              /* bleu ardoise */
+  --accent-clair: #EDF1F5;
+  --faible: #4C9A72;
+  --modere: #E0A43A;
+  --critique: #C2412D;
+  --alerte: #8C2018;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--fond);
+  color: var(--texte);
+  font-family: system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+
+table { border-collapse: collapse; width: 100%; }
+
+.hors-ecran {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* ---------- Bandeau donnees fictives ---------- */
+.bandeau-fictif {
+  background: var(--alerte);
+  color: #FFFFFF;
+  padding: 10px 20px;
+  font-size: 14px;
+}
+
+/* ---------- En-tete ---------- */
+.entete {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 20px 24px 16px;
+  background: var(--fond-bloc);
+  border-bottom: 1px solid var(--trait);
+}
+
+.entete h1 { font-size: 22px; color: var(--accent); }
+
+.sous-titre {
+  margin: 2px 0 0;
+  font-size: 15px;
+  color: var(--texte-doux);
+}
+
+.entete-badge { text-align: right; }
+
+.badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border: 1px solid var(--trait-fort);
+  border-radius: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badge--reel { color: #2F6B4F; border-color: #9BC4AE; background: #F1F7F3; }
+.badge--fictif { color: var(--alerte); border-color: #D9A49E; background: #FBF1F0; }
+
+.badge-source {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--texte-doux);
+}
+
+/* ---------- Disposition : carte 60 % / panneau 40 % ---------- */
+.disposition {
+  display: grid;
+  grid-template-columns: minmax(0, 60fr) minmax(0, 40fr);
+  gap: 20px;
+  padding: 20px 24px 28px;
+  align-items: start;
+}
+
+.colonne-carte, .colonne-panneau { min-width: 0; }
+
+/* ---------- Curseur d'annees ---------- */
+.barre-annees {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--fond-bloc);
+  border: 1px solid var(--trait);
+}
+
+.etiquette-annee {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--texte-doux);
+}
+
+.curseur { flex: 1; accent-color: var(--accent); height: 22px; }
+
+.curseur:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.valeur-annee {
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 112px;
+  text-align: right;
+}
+
+.etiquette-prevision {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border: 1px dashed var(--accent);
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  vertical-align: middle;
+}
+
+.mention-prevision {
+  margin: 8px 0 0;
+  padding: 7px 12px;
+  background: var(--accent-clair);
+  border-left: 3px solid var(--accent);
+  font-size: 13px;
+  color: var(--accent);
+}
+
+/* ---------- Carte ---------- */
+.cadre-carte {
+  position: relative;
+  margin-top: 12px;
+  background: var(--fond-bloc);
+  border: 1px solid var(--trait);
+}
+
+#carte { height: 500px; background: #F2F3F1; }
+
+.etat-chargement {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  background: rgba(250, 250, 248, 0.85);
+  font-size: 14px;
+  color: var(--texte-doux);
+}
+
+.colonne-panneau .etat-chargement { position: static; padding: 20px 0; }
+
+/* Infobulle de survol : sobre, sans ombre portee marquee */
+.etiquette-region {
+  padding: 6px 9px;
+  background: var(--fond-bloc);
+  border: 1px solid var(--trait-fort);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.etiquette-region strong { display: block; }
+
+.etiquette-region .valeur { font-variant-numeric: tabular-nums; }
+
+/* ---------- Legende ---------- */
+.legende {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--fond-bloc);
+  border: 1px solid var(--trait);
+}
+
+.titre-legende, .titre-encadre {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--texte-doux);
+}
+
+.liste-legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.liste-legende li { display: flex; align-items: center; gap: 7px; }
+
+.puce {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  flex: none;
+}
+
+.seuil { color: var(--texte-doux); font-variant-numeric: tabular-nums; }
+
+.note-legende, .note-graphique {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  color: var(--texte-doux);
+}
+
+/* ---------- Encadre fiabilite ---------- */
+.encadre-fiabilite {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--fond-bloc);
+  border: 1px solid var(--trait);
+  border-left: 3px solid var(--accent);
+}
+
+.encadre-fiabilite p { margin: 6px 0 0; font-size: 13.5px; color: var(--texte-doux); }
+
+/* ---------- Blocs du panneau ---------- */
+.bloc {
+  padding: 16px 18px;
+  background: var(--fond-bloc);
+  border: 1px solid var(--trait);
+}
+
+.titre-bloc { font-size: 17px; }
+
+.aide-bloc { margin: 4px 0 12px; font-size: 13px; color: var(--texte-doux); }
+
+.titre-section {
+  margin: 20px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--trait);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--texte-doux);
+}
+
+/* ---------- Tableaux ---------- */
+.tableau-classement, .tableau-indicateurs { font-size: 14px; }
+
+.tableau-classement th, .tableau-indicateurs th {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--trait-fort);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--texte-doux);
+  text-align: left;
+}
+
+.tableau-classement td, .tableau-indicateurs td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--trait);
+  vertical-align: top;
+}
+
+.col-nombre { text-align: right; font-variant-numeric: tabular-nums; }
+.col-rang { width: 28px; color: var(--texte-doux); font-variant-numeric: tabular-nums; }
+.petit { font-size: 13px; color: var(--texte-doux); }
+.proba { font-size: 12px; }
+
+.ligne-cliquable { cursor: pointer; }
+.ligne-cliquable:hover { background: var(--accent-clair); }
+.ligne-cliquable:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.ligne-seuil { border-left: 3px solid var(--modere); }
+
+.marque-seuil {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border: 1px solid var(--modere);
+  border-radius: 2px;
+  font-size: 11px;
+  color: #8A6414;
+  white-space: nowrap;
+}
+
+/* ---------- Pastilles de niveau ---------- */
+.pastille {
+  display: inline-block;
+  min-width: 46px;
+  padding: 2px 7px;
+  border-radius: 2px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: #FFFFFF;
+}
+
+.pastille--grande {
+  min-width: 0;
+  padding: 4px 12px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pastille--faible { background: var(--faible); }
+.pastille--modere { background: #B07A12; }      /* assombri pour le contraste AA */
+.pastille--critique { background: var(--critique); }
+
+.texte--faible { color: #2F6B4F; }
+.texte--modere { color: #8A6414; }
+.texte--critique { color: var(--critique); }
+
+/* ---------- Fiche region ---------- */
+.bouton-retour {
+  margin-bottom: 12px;
+  padding: 5px 10px;
+  background: var(--fond-bloc);
+  border: 1px solid var(--trait-fort);
+  border-radius: 2px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.bouton-retour:hover { background: var(--accent-clair); }
+.bouton-retour:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.entete-score {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 12px;
+}
+
+.score-grand {
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.sur-cent { font-size: 18px; font-weight: 400; color: var(--texte-doux); }
+
+.annee-score { margin: 6px 0 0; font-size: 13px; color: var(--texte-doux); }
+
+.ligne-incertitude {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  background: var(--accent-clair);
+  border-left: 3px solid var(--accent);
+  font-size: 13.5px;
+}
+
+.liste-facteurs, .liste-actions {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+}
+
+.liste-facteurs li, .liste-actions li { margin-bottom: 4px; }
+
+.bloc-facteur { margin-bottom: 12px; }
+
+.titre-facteur {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: var(--accent);
+}
+
+/* ---------- Graphique SVG dessine a la main ---------- */
+.graphique {
+  width: 100%;
+  height: auto;
+  background: var(--fond-bloc);
+}
+
+.valeur-barre {
+  font-size: 10px;
+  fill: var(--texte-doux);
+  font-variant-numeric: tabular-nums;
+}
+
+.annee-barre, .repere-axe {
+  font-size: 10px;
+  fill: var(--texte-doux);
+  font-variant-numeric: tabular-nums;
+}
+
+.annee-barre--choisie { fill: var(--texte); font-weight: 700; }
+
+/* Rappel de l'annee du curseur quand la fiche montre un autre millesime */
+.ligne-annee-choisie {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  background: #F4F5F3;
+  border-left: 3px solid var(--trait-fort);
+  font-size: 13px;
+  color: var(--texte-doux);
+}
+
+/* ---------- Bouton PDF ---------- */
+.bouton-pdf {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 10px 16px;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.bouton-pdf:hover { background: #2A415A; }
+.bouton-pdf:focus-visible { outline: 2px solid var(--texte); outline-offset: 2px; }
+
+/* ---------- Messages ---------- */
+.message-erreur {
+  margin: 16px 24px 0;
+  padding: 12px 14px;
+  background: #FBF1F0;
+  border: 1px solid #D9A49E;
+  border-left: 3px solid var(--alerte);
+  font-size: 14px;
+  color: var(--alerte);
+}
+
+.lien-bouton {
+  margin-left: 8px;
+  padding: 3px 9px;
+  background: var(--fond-bloc);
+  border: 1px solid var(--alerte);
+  border-radius: 2px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--alerte);
+  cursor: pointer;
+}
+
+/* ---------- Pied de page ---------- */
+.pied {
+  padding: 18px 24px 26px;
+  border-top: 1px solid var(--trait);
+  font-size: 12.5px;
+  color: var(--texte-doux);
+}
+
+.pied p { margin: 0 0 6px; max-width: 80ch; }
+
+/* ---------- Ecrans etroits : le panneau passe sous la carte ---------- */
+@media (max-width: 1000px) {
+  .disposition { grid-template-columns: 1fr; }
+  #carte { height: 380px; }
+}
+
+@media (max-width: 560px) {
+  body { font-size: 14.5px; }
+  .entete { padding: 14px 14px 12px; align-items: flex-start; }
+  .entete-badge { text-align: left; }
+  .disposition { padding: 14px 14px 20px; gap: 14px; }
+  .message-erreur { margin: 12px 14px 0; }
+  .pied { padding: 14px 14px 20px; }
+  #carte { height: 320px; }
+  .barre-annees { flex-wrap: wrap; }
+  .valeur-annee { min-width: 0; text-align: left; }
+  .score-grand { font-size: 36px; }
+  .bloc { padding: 14px; }
+  .tableau-classement, .tableau-indicateurs { font-size: 13.5px; }
+  .tableau-classement th, .tableau-classement td,
+  .tableau-indicateurs th, .tableau-indicateurs td { padding: 6px 5px; }
+}

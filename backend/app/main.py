@@ -2,14 +2,18 @@
 
 Lancer, depuis backend/ :   uvicorn app.main:app --reload
 Documentation interactive :  http://localhost:8000/docs
+Application web :            http://localhost:8000/app/
 """
+import csv
 import json
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from .config import GEOJSON_REGIONS, ORIGINES_FRONTEND
+from .config import (DOSSIER_ANALYSE, DOSSIER_FRONTEND, FICHIER_INCERTITUDE,
+                     FICHIER_METRIQUES, GEOJSON_REGIONS, ORIGINES_FRONTEND)
 from .db import lignes
 from .fiche_pdf import generer_fiche
 
@@ -107,6 +111,144 @@ RECOMMANDATIONS = {
     "Faible": ["Maintenir le suivi annuel des indicateurs"],
 }
 
+# Pistes d'action associees a chaque facteur de risque (Membre 2).
+# Ce sont des pistes generales, a adapter par les services deconcentres.
+ACTIONS_PAR_FACTEUR = {
+    "fermeture_ecoles": [
+        "Réouverture ou relocalisation des écoles fermées",
+        "Mise en place d'espaces temporaires d'apprentissage",
+        "Dispositifs d'éducation en situation d'urgence",
+    ],
+    "recul_effectifs": [
+        "Recensement des enfants déplacés non scolarisés",
+        "Passerelles de réinsertion scolaire et cours de rattrapage",
+    ],
+    "ecart_admission_achevement": [
+        "Suivi des cohortes du CP1 au CM2 (repérage précoce des abandons)",
+        "Cantines scolaires et kits pour retenir les élèves jusqu'à la fin du cycle",
+    ],
+    "faible_achevement": [
+        "Remédiation en lecture et en calcul",
+        "Préparation renforcée au CEP",
+    ],
+    "faible_scolarisation": [
+        "Campagnes d'inscription et sensibilisation des familles",
+        "Appui à l'établissement des actes d'état civil",
+        "Rapprochement de l'offre scolaire (écoles de proximité)",
+    ],
+    "disparite_filles_garcons": [
+        "Actions ciblées sur le sexe le plus en retard dans la région",
+    ],
+}
+
+LIBELLES_FACTEURS = {
+    "ecart_admission_achevement": "Écart entre admission et achèvement",
+    "faible_achevement": "Faible taux d'achèvement",
+    "recul_effectifs": "Élèves perdus depuis le pic",
+    "fermeture_ecoles": "Fermetures d'écoles",
+    "faible_scolarisation": "Faible scolarisation",
+    "disparite_filles_garcons": "Inégalité filles-garçons",
+    "aucun_facteur_marquant": "Aucun facteur marquant",
+}
+
+
+def _lire_csv(chemin) -> list[dict]:
+    """Lit un CSV de data/04_analyse en liste de dictionnaires."""
+    with chemin.open(encoding="utf-8", newline="") as flux:
+        return list(csv.DictReader(flux))
+
+
+def _nombre(valeur):
+    """Convertit une chaine de CSV en nombre, ou None si vide."""
+    if valeur in (None, "", "-"):
+        return None
+    try:
+        return float(valeur)
+    except ValueError:
+        return valeur
+
+
+def actions_par_facteur(codes: str, ips_tap: float | None) -> list[dict]:
+    """Pistes d'action pour chaque facteur cite, avec son libelle francais."""
+    resultat = []
+    for code in (codes or "").split(";"):
+        code = code.strip()
+        if not code or code == "aucun_facteur_marquant":
+            continue
+        pistes = list(ACTIONS_PAR_FACTEUR.get(code, []))
+        if code == "disparite_filles_garcons" and ips_tap is not None:
+            retard = "les filles" if ips_tap < 1 else "les garçons"
+            pistes = [f"Actions ciblées sur {retard} : c'est le groupe le plus "
+                      f"en retard dans cette région (indice de parité "
+                      f"filles/garçons de l'achèvement = {ips_tap:.2f})"]
+        if pistes:
+            resultat.append({
+                "facteur": code,
+                "libelle": LIBELLES_FACTEURS.get(code, code.replace("_", " ")),
+                "actions": pistes,
+            })
+    return resultat
+
+
+@app.get("/modele", tags=["Modele"])
+def modele():
+    """Modele de prevision retenu, regle de decision, metriques et incertitude 2026.
+
+    Lit les sorties de `pipeline/modele_risque.py` dans data/04_analyse/.
+    """
+    fichier_metriques = DOSSIER_ANALYSE / FICHIER_METRIQUES
+    fichier_incertitude = DOSSIER_ANALYSE / FICHIER_INCERTITUDE
+    manquants = [f.name for f in (fichier_metriques, fichier_incertitude)
+                 if not f.exists()]
+    if manquants:
+        raise HTTPException(404, (
+            f"Sorties du modele absentes : {', '.join(manquants)}. "
+            "Lancer : python pipeline/modele_risque.py"))
+
+    metriques = _lire_csv(fichier_metriques)
+    for ligne in metriques:
+        for colonne in ("mae", "rmse", "justesse_niveau", "f1_critique",
+                        "lignes_entrainement", "lignes_test"):
+            if colonne in ligne:
+                ligne[colonne] = _nombre(ligne[colonne])
+
+    retenu = next((l["modele"] for l in metriques
+                   if l.get("retenu_pour_2026") == "oui"), None)
+    glissantes = [l for l in metriques if l.get("protocole") == "glissante"]
+    plis_retenu = [l["mae"] for l in glissantes
+                   if l["modele"] == retenu and l["mae"] is not None]
+    mae_moyenne = (round(sum(plis_retenu) / len(plis_retenu), 3)
+                   if plis_retenu else None)
+
+    incertitude = []
+    for ligne in _lire_csv(fichier_incertitude):
+        incertitude.append({
+            "region_code": ligne["region_code"],
+            "annee": int(ligne["annee"]),
+            "score": _nombre(ligne["score"]),
+            "score_bas": _nombre(ligne["score_bas"]),
+            "score_haut": _nombre(ligne["score_haut"]),
+            "proba_critique": _nombre(ligne["proba_critique"]),
+        })
+
+    return {
+        "modele_retenu": retenu,
+        "mae_moyenne_glissante": mae_moyenne,
+        "regle_de_decision": (
+            "Le modele retenu est celui qui obtient la plus faible erreur moyenne "
+            "(MAE) sur trois validations glissantes : apprendre sur tout le passe "
+            "disponible et prevoir l'annee suivante. Si l'avance d'un modele appris "
+            "sur la reference naive est inferieure a 0,3 point de MAE, on garde la "
+            "reference naive, plus simple. Cette regle a ete fixee avant de regarder "
+            "les resultats."),
+        "protocoles": {
+            "fixe": [l for l in metriques if l.get("protocole") == "fixe"],
+            "glissante": glissantes,
+        },
+        "incertitude_2026": incertitude,
+        "seuils": {"modere": 33, "critique": 66},
+    }
+
 
 @app.get("/regions/{code}/fiche", tags=["Carte"])
 def fiche_region(code: str):
@@ -119,6 +261,17 @@ def fiche_region(code: str):
     recents = lignes("SELECT indicateur, sexe, valeur FROM indicateurs "
                      "WHERE region_code = ? AND annee = ? ORDER BY indicateur, sexe", (code, derniere))
     actuel = historique[-1] if historique else None
+    ips_tap = next((r["valeur"] for r in recents
+                    if r["indicateur"] == "ips_tap" and r["sexe"] == "T"), None)
+    incertitude = None
+    if actuel and actuel["est_prevision"]:
+        fichier = DOSSIER_ANALYSE / FICHIER_INCERTITUDE
+        if fichier.exists():
+            incertitude = next(
+                ({"score_bas": _nombre(l["score_bas"]),
+                  "score_haut": _nombre(l["score_haut"]),
+                  "proba_critique": _nombre(l["proba_critique"])}
+                 for l in _lire_csv(fichier) if l["region_code"] == code), None)
     return {
         "region_code": code,
         "region_nom": nom,
@@ -127,6 +280,9 @@ def fiche_region(code: str):
         "annee_indicateurs": derniere,
         "indicateurs": recents,
         "recommandations": RECOMMANDATIONS.get(actuel["niveau"], []) if actuel else [],
+        "actions_par_facteur": (actions_par_facteur(actuel["facteurs"], ips_tap)
+                                if actuel else []),
+        "incertitude_prevision": incertitude,
     }
 
 
@@ -140,3 +296,10 @@ def fiche_region_pdf(code: str):
     nom = f"EduAlertBF_fiche_{fiche['region_code']}.pdf"
     return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f'inline; filename="{nom}"'})
+
+
+# Application web (Membre 2) servie par l'API : http://localhost:8000/app/
+# Monte en dernier pour ne masquer aucune route de l'API.
+if DOSSIER_FRONTEND.is_dir():
+    app.mount("/app", StaticFiles(directory=DOSSIER_FRONTEND, html=True),
+              name="application")

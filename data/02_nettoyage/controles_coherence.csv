@@ -1,0 +1,219 @@
+controle,perimetre,annee,sexe,valeur_attendue,valeur_obtenue,ecart_absolu,ecart_relatif_pct,tolerance,statut
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2016,F,1395243.0,1395243.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2016,G,1477806.0,1477806.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2016,T,2873049.0,2873049.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2017,F,1482275.0,1482275.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2017,G,1558527.0,1558527.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2017,T,3040802.0,3040802.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2018,F,1561817.0,1561817.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2018,G,1644202.0,1644202.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2018,T,3206019.0,3206019.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2019,F,1584455.0,1584455.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2019,G,1649329.0,1649329.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2019,T,3233784.0,3233784.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2020,F,1599131.0,1599131.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2020,G,1641216.0,1641216.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2020,T,3240347.0,3240347.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2021,F,1629897.0,1629897.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2021,G,1659839.0,1659839.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2021,T,3289736.0,3289736.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2022,F,1581485.0,1581485.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2022,G,1593461.0,1593461.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2022,T,3174946.0,3174946.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2023,F,1419282.0,1419282.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2023,G,1416262.0,1416262.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2023,T,2835544.0,2835544.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2024,F,1532444.0,1532444.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2024,G,1535496.0,1535496.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2024,T,3067940.0,3067940.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2025,F,1642537.0,1642537.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2025,G,1665559.0,1665559.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du primaire),Feuil1,2025,T,3308096.0,3308096.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2016,F,26997.0,26997.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2016,G,28006.0,28006.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2016,T,55003.0,55003.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2017,F,33154.0,33154.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2017,G,34579.0,34579.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2017,T,67733.0,67733.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2018,F,40086.0,40086.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2018,G,41845.0,41845.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2018,T,81931.0,81931.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2019,F,51729.0,51729.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2019,G,53756.0,53756.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2019,T,105485.0,105485.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2020,F,61096.0,61096.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2020,G,62910.0,62910.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2020,T,124006.0,124006.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2021,F,64282.0,64282.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2021,G,66129.0,66129.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2021,T,130411.0,130411.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2022,F,67953.0,67953.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2022,G,70715.0,70715.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2022,T,138668.0,138668.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2023,F,69908.0,69908.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2023,G,72396.0,72396.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2023,T,142304.0,142304.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2024,F,75598.0,75598.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2024,G,78072.0,78072.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2024,T,153670.0,153670.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2025,F,93667.0,93667.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2025,G,96823.0,96823.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (effectifs du prescolaire),PRESCOLAIRE,2025,T,190490.0,190490.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2016,F,288775.0,288775.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2016,G,316310.0,316310.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2016,T,605085.0,605085.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2017,F,303849.0,303849.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2017,G,330699.0,330699.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2017,T,634548.0,634548.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2018,F,316531.0,316531.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2018,G,345047.0,345047.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2018,T,661578.0,661578.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2019,F,301518.0,301518.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2019,G,330599.0,330599.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2019,T,632117.0,632117.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2020,F,300790.0,300790.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2020,G,324799.0,324799.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2020,T,625589.0,625589.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2021,F,315824.0,315824.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2021,G,339625.0,339625.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2021,T,655449.0,655449.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2022,F,305841.0,305841.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2022,G,329916.0,329916.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2022,T,635757.0,635757.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2023,F,280628.0,280628.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2023,G,300893.0,300893.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2023,T,581521.0,581521.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2024,F,340870.0,340870.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2024,G,366387.0,366387.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2024,T,707257.0,707257.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2025,F,370837.0,370837.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2025,G,398103.0,398103.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nouveaux inscrits au CP1),Feuil5,2025,T,768940.0,768940.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nombre d'ecoles),Feuil13,2016,T,14655.0,14655.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nombre d'ecoles),Feuil13,2017,T,15330.0,15330.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nombre d'ecoles),Feuil13,2018,T,15756.0,15756.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nombre d'ecoles),Feuil13,2019,T,15345.0,15345.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nombre d'ecoles),Feuil13,2020,T,14863.0,14863.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nombre d'ecoles),Feuil13,2021,T,15077.0,15077.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nombre d'ecoles),Feuil13,2022,T,14427.0,14427.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nombre d'ecoles),Feuil13,2023,T,12780.0,12780.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nombre d'ecoles),Feuil13,2024,T,13558.0,13558.0,0.0,0.0,<= 0.5 %,OK
+somme des 13 regions = ligne nationale (nombre d'ecoles),Feuil13,2025,T,14276.0,14276.0,0.0,0.0,<= 0.5 %,OK
+G + F = T (effectifs du primaire),13 regions x 10 annees,toutes,G+F vs T,0.0,0.0,0.0,,exact,OK
+G + F = T (effectifs du prescolaire),13 regions x 10 annees,toutes,G+F vs T,0.0,0.0,0.0,,exact,OK
+G + F = T (nouveaux inscrits au CP1),13 regions x 10 annees,toutes,G+F vs T,0.0,0.0,0.0,,exact,OK
+Public + Prive = Total (ecoles),13 regions x 10 annees,toutes,T,0.0,0.0,0.0,,exact,OK
+total national Feuil1 = Feuil2 (public + prive),national,2016,F,1395243.0,1395243.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2016,G,1477806.0,1477806.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2016,T,2873049.0,2873049.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2017,F,1482275.0,1482275.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2017,G,1558527.0,1558527.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2017,T,3040802.0,3040802.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2018,F,1561817.0,1561817.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2018,G,1644202.0,1644202.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2018,T,3206019.0,3206019.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2019,F,1584455.0,1584455.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2019,G,1649329.0,1649329.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2019,T,3233784.0,3233784.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2020,F,1599131.0,1599131.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2020,G,1641216.0,1641216.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2020,T,3240347.0,3240347.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2021,F,1629897.0,1629897.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2021,G,1659839.0,1659839.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2021,T,3289736.0,3289736.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2022,F,1581485.0,1581485.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2022,G,1593461.0,1593461.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2022,T,3174946.0,3174946.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2023,F,1419282.0,1419282.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2023,G,1416262.0,1416262.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2023,T,2835544.0,2835544.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2024,F,1532444.0,1532444.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2024,G,1535496.0,1535496.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2024,T,3067940.0,3067940.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2025,F,1642537.0,1642537.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2025,G,1665559.0,1665559.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil2 (public + prive),national,2025,T,3308096.0,3308096.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2016,F,1395243.0,1395243.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2016,G,1477806.0,1477806.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2016,T,2873049.0,2873049.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2017,F,1482275.0,1482275.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2017,G,1558527.0,1558527.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2017,T,3040802.0,3040802.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2018,F,1561817.0,1561817.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2018,G,1644202.0,1644202.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2018,T,3206019.0,3206019.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2019,F,1584455.0,1584455.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2019,G,1649329.0,1649329.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2019,T,3233784.0,3233784.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2020,F,1599131.0,1599131.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2020,G,1641216.0,1641216.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2020,T,3240347.0,3240347.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2021,F,1629897.0,1629897.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2021,G,1659839.0,1659839.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2021,T,3289736.0,3289736.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2022,F,1581485.0,1581485.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2022,G,1593461.0,1593461.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2022,T,3174946.0,3174946.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2023,F,1419282.0,1419282.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2023,G,1416262.0,1416262.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2023,T,2835544.0,2835544.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2024,F,1532444.0,1532444.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2024,G,1535496.0,1535496.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2024,T,3067940.0,3067940.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2025,F,1642537.0,1642537.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2025,G,1665559.0,1665559.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil3 (urbain + rural),national,2025,T,3308096.0,3308096.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2016,F,1395243.0,1395243.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2016,G,1477806.0,1477806.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2016,T,2873049.0,2873049.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2017,F,1482275.0,1482275.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2017,G,1558527.0,1558527.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2017,T,3040802.0,3040802.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2018,F,1561817.0,1561817.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2018,G,1644202.0,1644202.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2018,T,3206019.0,3206019.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2019,F,1584455.0,1584455.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2019,G,1649329.0,1649329.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2019,T,3233784.0,3233784.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2020,F,1599131.0,1599131.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2020,G,1641216.0,1641216.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2020,T,3240347.0,3240347.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2021,F,1629897.0,1629897.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2021,G,1659839.0,1659839.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2021,T,3289736.0,3289736.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2022,F,1581485.0,1581485.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2022,G,1593461.0,1593461.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2022,T,3174946.0,3174946.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2023,F,1419282.0,1419282.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2023,G,1416262.0,1416262.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2023,T,2835544.0,2835544.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2024,F,1532444.0,1532444.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2024,G,1535496.0,1535496.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2024,T,3067940.0,3067940.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2025,F,1642537.0,1642537.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2025,G,1665559.0,1665559.0,0.0,0.0,<= 0.5 %,OK
+total national Feuil1 = Feuil4 (somme des niveaux),national,2025,T,3308096.0,3308096.0,0.0,0.0,<= 0.5 %,OK
+13 regions x 10 annees presentes,effectif_prescolaire (sexe F),10 annees,F,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,effectif_prescolaire (sexe G),10 annees,G,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,effectif_prescolaire (sexe T),10 annees,T,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,effectif_primaire (sexe F),10 annees,F,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,effectif_primaire (sexe G),10 annees,G,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,effectif_primaire (sexe T),10 annees,T,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,nombre_ecoles (sexe T),10 annees,T,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,nombre_ecoles_prive (sexe T),10 annees,T,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,nombre_ecoles_public (sexe T),10 annees,T,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,nouveaux_inscrits_cp1 (sexe F),10 annees,F,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,nouveaux_inscrits_cp1 (sexe G),10 annees,G,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,nouveaux_inscrits_cp1 (sexe T),10 annees,T,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,taux_achevement (sexe F),10 annees,F,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,taux_achevement (sexe G),10 annees,G,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,taux_achevement (sexe T),10 annees,T,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,taux_brut_admission (sexe F),10 annees,F,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,taux_brut_admission (sexe G),10 annees,G,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,taux_brut_admission (sexe T),10 annees,T,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,taux_brut_scolarisation (sexe F),10 annees,F,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,taux_brut_scolarisation (sexe G),10 annees,G,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,taux_brut_scolarisation (sexe T),10 annees,T,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,taux_reussite_cep (sexe F),10 annees,F,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,taux_reussite_cep (sexe G),10 annees,G,130.0,130.0,0.0,,aucun trou non explique,OK
+13 regions x 10 annees presentes,taux_reussite_cep (sexe T),10 annees,T,130.0,130.0,0.0,,aucun trou non explique,OK

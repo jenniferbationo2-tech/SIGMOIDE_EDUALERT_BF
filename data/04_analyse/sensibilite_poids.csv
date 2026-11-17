@@ -1,0 +1,9 @@
+variante,description,observations_comparees,spearman_classement,part_regions_changeant_de_niveau_pct
+poids_egaux,toutes les composantes a poids identique,117,0.9825,6.8
+sans_ecart_admission_achevement,composante ecart_admission_achevement retiree,117,0.9054,23.1
+sans_faible_achevement,composante faible_achevement retiree,117,0.9616,9.4
+sans_recul_effectifs,composante recul_effectifs retiree,117,0.9561,10.3
+sans_fermeture_ecoles,composante fermeture_ecoles retiree,117,0.9846,7.7
+sans_faible_scolarisation,composante faible_scolarisation retiree,117,0.9894,5.1
+sans_disparite_filles_garcons,composante disparite_filles_garcons retiree,117,0.9845,7.7
+avec_variations_annuelles,variante ecartee : variations annuelles au lieu du recul depuis le pic,117,0.8302,19.7

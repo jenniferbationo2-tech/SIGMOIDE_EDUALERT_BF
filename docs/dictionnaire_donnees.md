@@ -64,22 +64,53 @@ Origine des données chargées (`reel` ou `FICTIF`), exposée par `GET /sante`.
 
 ## 4. Indicateurs (noms à utiliser dans `indicateurs.csv`)
 
-| `indicateur` | Définition | Source DGESS | Unité |
-|---|---|---|---|
-| `effectif_prescolaire` | Élèves inscrits au préscolaire | onglet PRESCOLAIRE | élèves |
-| `effectif_primaire` | Élèves inscrits au primaire | Feuil1 | élèves |
-| `nouveaux_inscrits_cp1` | Nouveaux inscrits au CP1 | Feuil5 | élèves |
-| `taux_brut_admission` | TBA : nouveaux inscrits CP1 / population de 6 ans | Feuil6 | % |
-| `taux_brut_scolarisation` | TBS : effectif primaire / population 6-11 ans | Feuil7 | % |
-| `taux_achevement` | TAP : admis en CM2 non redoublants / population de 11 ans | Feuil8 | % |
-| `taux_reussite_cep` | Admis au CEP / présentés | Feuil9 | % |
-| `ips_tbs` | Indice de parité F/G du TBS (recalculé) | Feuil11 | ratio |
-| `nombre_ecoles` | Écoles primaires (public + privé) | Feuil13 | écoles |
-| `variation_effectif_primaire` | (effectif N − effectif N−1) / effectif N−1 | calculé | % |
-| `eleves_par_ecole` | effectif primaire / nombre d'écoles | calculé | élèves |
+| `indicateur` | Définition | Source DGESS | Unité | Sexes |
+|---|---|---|---|---|
+| `effectif_prescolaire` | Élèves inscrits au préscolaire | onglet PRESCOLAIRE (Tableau 1) | élèves | G/F/T |
+| `effectif_primaire` | Élèves inscrits au primaire | Feuil1 | élèves | G/F/T |
+| `nouveaux_inscrits_cp1` | Nouveaux inscrits au CP1 | Feuil5 | élèves | G/F/T |
+| `taux_brut_admission` | TBA : nouveaux inscrits CP1 / population de 6 ans | Feuil6 | % | G/F/T |
+| `taux_brut_scolarisation` | TBS : effectif primaire / population 6-11 ans | Feuil7 | % | G/F/T |
+| `taux_achevement` | TAP : admis en CM2 non redoublants / population de 11 ans | Feuil8 | % | G/F/T |
+| `taux_reussite_cep` | Admis au CEP / présentés | Feuil9 | % | G/F/T |
+| `ips_tba` | Indice de parité F/G du TBA : TBA des filles / TBA des garçons (recalculé depuis Feuil6, les formules de Feuil10 ne sont pas lues) | calculé (Feuil6) | ratio | T |
+| `ips_tbs` | Indice de parité F/G du TBS : TBS des filles / TBS des garçons (recalculé depuis Feuil7, les formules de Feuil11 ne sont pas lues) | calculé (Feuil7) | ratio | T |
+| `ips_tap` | Indice de parité F/G du TAP : TAP des filles / TAP des garçons (recalculé depuis Feuil8, les formules de Feuil12 ne sont pas lues) | calculé (Feuil8) | ratio | T |
+| `nombre_ecoles` | Écoles primaires, tous statuts (public + privé) | Feuil13 | écoles | T |
+| `nombre_ecoles_public` | Écoles primaires publiques | Feuil13 | écoles | T |
+| `nombre_ecoles_prive` | Écoles primaires privées | Feuil13 | écoles | T |
+| `variation_effectif_primaire` | (effectif N − effectif N−1) / effectif N−1 × 100. Une chute traduit des élèves sortis du système (fermetures, déplacements de population). Indicateur d'affichage : il n'entre pas dans l'indice de risque, car un rebond après effondrement donne une variation positive trompeuse | calculé (Feuil1) | % | G/F/T |
+| `variation_nombre_ecoles` | (écoles N − écoles N−1) / écoles N−1 × 100. Mesure les fermetures d'écoles liées à l'insécurité. Indicateur d'affichage, hors indice de risque (même raison) | calculé (Feuil13) | % | T |
+| `recul_effectif_primaire_vs_pic` | (effectif N / maximum des effectifs de 2016 à N − 1) × 100. Négatif ou nul. Mesure la part des élèves jamais revenus depuis le meilleur niveau atteint par la région. Entre dans l'indice de risque à la place de la variation annuelle | calculé (Feuil1) | % | T |
+| `recul_nombre_ecoles_vs_pic` | (écoles N / maximum des écoles de 2016 à N − 1) × 100. Négatif ou nul. Mesure les écoles jamais réouvertes depuis le pic. Entre dans l'indice de risque | calculé (Feuil13) | % | T |
+| `eleves_par_ecole` | effectif primaire / nombre d'écoles. Mesure la pression sur l'offre scolaire restante | calculé (Feuil1, Feuil13) | élèves par école | T |
+| `ecart_tba_tap` | TBA − TAP, en points. Un écart large signale que beaucoup d'élèves entrent mais que peu achèvent : déperdition en cours de cycle | calculé (Feuil6, Feuil8) | points de % | T |
+| `variation_taux_achevement` | TAP N − TAP N−1, en points. Mesure la dégradation de la rétention | calculé (Feuil8) | points de % | T |
+
+Les indicateurs de variation n'existent pas pour 2016 (pas d'année N−1) : aucune ligne n'est écrite
+pour cette année-là, plutôt qu'une ligne à valeur vide. Les deux indicateurs de recul existent dès
+2016, où ils valent 0 par construction (l'année est son propre maximum).
+
+**Pourquoi un recul depuis le pic en plus de la variation annuelle ?** La variation annuelle fait
+baisser à tort le risque d'une région encore dévastée : en 2025 le Sahel gagne 10,5 % d'élèves et
+10 % d'écoles, mais il lui manque toujours 52,8 % de ses élèves et 82,0 % de ses écoles par rapport
+à son meilleur niveau. Le recul depuis le pic mesure ce qui n'a pas été reconstitué. Les deux
+familles restent publiées : les variations pour la lecture année par année, les reculs pour l'indice.
+
+Les valeurs sont écrites avec 4 décimales dans `indicateurs.csv`. En amont,
+`data/02_nettoyage/` conserve les taux en pleine précision, car les IPS sont des rapports de taux.
 
 Les indicateurs du Data Pack (PDI, incidents, population INSD, enseignants) s'ajoutent avec la même règle :
 nom en minuscules, sans accent, mots séparés par `_`, et une ligne dans ce tableau.
+
+### 4.1 Contexte national (hors `indicateurs.csv`)
+
+| Fichier | Contenu | Formule | Source |
+|---|---|---|---|
+| `data/03_transformation/survie_cohortes_national.csv` | Taux de survie apparent du primaire, national, par sexe | effectif CM2 de l'année N+5 / effectif CP1 de l'année N × 100 | Feuil4 |
+
+C'est le seul proxy d'abandon par cohorte disponible : il est *apparent* (il ne suit pas les élèves
+un par un) et mêle abandons, redoublements et migrations. Il sert à la documentation, pas à la carte.
 
 ## 5. Règles de qualité appliquées au chargement
 
