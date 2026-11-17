@@ -42,6 +42,7 @@ const lireEtat = (page) => page.evaluate(() => ({
   interactifs: document.querySelectorAll(
     'input,button,select,a,.ligne-cliquable,#carte path').length,
   lignesClassement: document.querySelectorAll('.tableau-classement tbody tr').length,
+  etiquettesRegion: document.querySelectorAll('.etiquette-region').length,
   pointilles: Array.from(document.querySelectorAll('#carte path'))
     .filter((p) => (p.getAttribute('stroke-dasharray') || '').trim() !== '').length,
   chargement: document.querySelectorAll('.etat-chargement').length,
@@ -125,14 +126,19 @@ async function capturer({ fichier, largeur, hauteur, preparer, temoins = [],
   return true;
 }
 
-/** Deplace le curseur d'annee et attend que l'interface ait suivi. */
+/**
+  * Choisit une annee. Depuis la refonte, le selecteur est un GROUPE DE
+  * BOUTONS (et non plus un curseur) : on clique celui qui porte l'annee, et
+  * on attend que `aria-pressed` bascule — l'etat du bouton, pas un delai.
+  */
 const choisirAnnee = (annee) => async (page) => {
-  await page.locator('#curseur-annee').evaluate((el, a) => {
-    el.value = String(a);
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  }, annee);
+  const bouton = page.locator('.annee-bouton', { hasText: String(annee) }).first();
+  await bouton.click();
   await page.waitForFunction(
-    (a) => (document.querySelector('.valeur-annee')?.innerText || '').includes(String(a)),
+    (a) => {
+      const actif = document.querySelector('.annee-bouton[aria-pressed="true"]');
+      return actif && actif.innerText.includes(String(a));
+    },
     annee, { timeout: 10_000 });
   await page.waitForTimeout(900);   // laisse la carte se recolorer
 };
@@ -142,8 +148,10 @@ const ouvrirFiche = (rang) => async (page) => {
   const ligne = page.locator('.tableau-classement tbody tr').nth(rang);
   await ligne.click();
   await page.waitForSelector('.bouton-retour', { state: 'visible', timeout: 10_000 });
+  // On attend la PHRASE DE SYNTHESE : c'est le dernier element calcule de la
+  // fiche, donc le bon temoin que tout est en place.
   await page.waitForFunction(
-    () => (document.querySelector('.score-grand')?.innerText || '').trim().length > 0,
+    () => (document.querySelector('.synthese')?.innerText || '').trim().length > 40,
     null, { timeout: 10_000 });
   await page.waitForTimeout(700);
 };
@@ -153,17 +161,20 @@ const ECRANS = [
     fichier: '01-carte-2025-observe.png',
     largeur: 1366, hauteur: 900,
     preparer: choisirAnnee(2025),
-    temoins: ['EduAlert BF', 'Classement 2025', 'Niveau de risque'],
+    temoins: ['EduAlert BF', 'Classement 2025', 'Niveau de risque',
+              'Régions en risque critique', 'Comment lire cette page'],
     controle: (e) => (e.polygones < 13 ? `${e.polygones} polygones` : null)
       || (e.lignesClassement !== 13 ? `${e.lignesClassement} lignes de classement` : null)
-      || (e.pointilles > 0 ? `${e.pointilles} contours en pointilles sur une annee observee` : null)
-      || (/prévision du modèle/i.test(e.texte) ? 'mention de prevision sur 2025' : null),
+      // Les 13 noms de region doivent etre ecrits sur la carte.
+      || (e.etiquettesRegion !== 13
+          ? `${e.etiquettesRegion} etiquettes de region sur 13` : null)
+      || (e.pointilles > 0 ? `${e.pointilles} contours en pointilles sur une annee observee` : null),
   },
   {
     fichier: '02-carte-2026-prevision.png',
     largeur: 1366, hauteur: 900,
     preparer: choisirAnnee(2026),
-    temoins: ['Classement 2026', 'Prévision du modèle', 'Fiabilité de la prévision'],
+    temoins: ['Classement 2026', 'prévision', 'Fiabilité de la prévision'],
     // Sur 2026, les 13 contours doivent etre en pointilles : c'est le seul
     // marqueur visuel, le modele retenu reprenant les scores de 2025.
     controle: (e) => (e.pointilles < 13
@@ -173,22 +184,22 @@ const ECRANS = [
     fichier: '03-fiche-region-critique.png',
     largeur: 1366, hauteur: 900,
     preparer: async (page) => { await choisirAnnee(2025)(page); await ouvrirFiche(0)(page); },
-    temoins: ['Centre-Nord', 'Facteurs principaux', 'Évolution du score',
-              'Actions recommandées'],
+    temoins: ['Centre-Nord', 'Causes principales', 'Évolution du score',
+              'Pistes d\'action', 'Moyenne 13 régions', 'est en risque critique'],
     controle: (e) => (/Critique/.test(e.texte) ? null : 'niveau Critique absent de la fiche'),
   },
   {
     fichier: '04-fiche-region-faible.png',
     largeur: 1366, hauteur: 900,
     preparer: async (page) => { await choisirAnnee(2025)(page); await ouvrirFiche(12)(page); },
-    temoins: ['Facteurs principaux', 'Indicateurs clés'],
+    temoins: ['Causes principales', 'Indicateurs clés', 'Moyenne 13 régions'],
     controle: (e) => (/Faible/.test(e.texte) ? null : 'niveau Faible absent de la fiche'),
   },
   {
     fichier: '05-ecran-etroit-390.png',
     largeur: 390, hauteur: 844,
     preparer: choisirAnnee(2025),
-    temoins: ['EduAlert BF', 'Classement 2025'],
+    temoins: ['EduAlert BF', 'Classement 2025', 'Régions en risque critique'],
     // Sur telephone, le defaut qui compte est le debordement lateral.
     controle: (e) => (e.debordement > 2 ? `debordement horizontal de ${e.debordement} px` : null),
   },

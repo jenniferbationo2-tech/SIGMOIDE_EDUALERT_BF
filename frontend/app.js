@@ -1,374 +1,520 @@
-/* EduAlert BF - logique de l'application (Vue 3 sans etape de compilation).
-
-   Regle de l'equipe : l'interface n'appelle QUE l'API, jamais un fichier de
-   donnees directement.
-
-   Endpoints utilises : /sante, /annees, /regions, /geo/regions, /risque,
-   /modele, /regions/{code}/fiche, /regions/{code}/fiche.pdf
-*/
-'use strict';
-
-// L'application est servie par l'API elle-meme sur /app/ : l'API est donc a la
-// racine du meme domaine. En developpement (fichier ouvert directement), on
-// retombe sur le port 8000 en local.
-const BASE_API = (window.location.protocol === 'file:')
-  ? 'http://localhost:8000'
-  : window.location.origin;
-
-const COULEURS_NIVEAU = {
-  Faible: '#4C9A72',
-  Modere: '#E0A43A',
-  Critique: '#C2412D',
-};
-
-const LIBELLES_FACTEURS = {
-  ecart_admission_achevement: "Écart entre admission et achèvement",
-  faible_achevement: "Faible taux d'achèvement",
-  recul_effectifs: "Élèves perdus depuis le pic",
-  fermeture_ecoles: "Fermetures d'écoles",
-  faible_scolarisation: "Faible scolarisation",
-  disparite_filles_garcons: "Inégalité filles-garçons",
-  aucun_facteur_marquant: "Aucun facteur marquant",
-};
-
-const LIBELLES_NIVEAUX = {
-  Faible: 'Faible',
-  Modere: 'Modéré',
-  Critique: 'Critique',
-};
-
-// Indicateurs montres dans la fiche, dans cet ordre.
-const INDICATEURS_FICHE = [
-  ['taux_achevement', "Taux d'achèvement (%)"],
-  ['taux_brut_admission', "Taux brut d'admission (%)"],
-  ['taux_brut_scolarisation', 'Taux brut de scolarisation (%)'],
-  ['taux_reussite_cep', 'Taux de réussite au CEP (%)'],
-  ['effectif_primaire', 'Effectif du primaire'],
-  ['nouveaux_inscrits_cp1', 'Nouveaux inscrits au CP1'],
-  ['nombre_ecoles', "Nombre d'écoles"],
-  ['eleves_par_ecole', 'Élèves par école'],
-  ['ecart_tba_tap', 'Écart admission - achèvement (points)'],
-  ['recul_effectif_primaire_vs_pic', 'Élèves perdus depuis le pic (%)'],
-  ['recul_nombre_ecoles_vs_pic', 'Écoles fermées depuis le pic (%)'],
-  ['ips_tap', "Indice de parité F/G (achèvement)"],
-];
-
-const SEUIL_CRITIQUE = 66;
-
-async function recuperer(chemin) {
-  const reponse = await fetch(BASE_API + chemin);
-  if (!reponse.ok) {
-    throw new Error(`L'API a répondu ${reponse.status} pour ${chemin}`);
-  }
-  return reponse.json();
-}
+/* ==========================================================================
+   EduAlert BF — logique de l'interface
+   --------------------------------------------------------------------------
+   Vue 3 sans compilation, Leaflet pour la carte. Toutes les adresses d'API
+   sont RELATIVES : l'application fonctionne derriere n'importe quel nom de
+   domaine sans reconfiguration.
+   ========================================================================== */
 
 const { createApp } = Vue;
+
+// Echelle de risque. Ces couleurs ne servent QU'aux donnees : les couleurs
+// d'identite (vert institutionnel, jaune) ne doivent jamais arriver ici.
+const COULEURS_RISQUE = {
+  faible: '#4C9A72',
+  modere: '#E0A43A',
+  critique: '#B3261E',
+};
+
+const LIBELLES_NIVEAU = { faible: 'Faible', modere: 'Modéré', critique: 'Critique' };
+
+const LIBELLES_FACTEURS = {
+  ecart_admission_achevement: "Écart entre l'entrée au CP1 et la fin du primaire",
+  faible_achevement: "Peu d'élèves terminent le primaire",
+  recul_effectifs: 'Élèves perdus depuis le meilleur niveau',
+  fermeture_ecoles: "Écoles fermées depuis le meilleur niveau",
+  faible_scolarisation: 'Peu d\'enfants scolarisés',
+  disparite_filles_garcons: 'Écart entre filles et garçons',
+  aucun_facteur_marquant: 'Aucun facteur marquant',
+};
+
+// Indicateurs montres dans la fiche, avec le sens de lecture : `hautBon`
+// indique si une valeur elevee est une BONNE nouvelle. Sans cette precision,
+// la colonne « ecart » colorerait en vert un retard et en rouge une avance.
+const INDICATEURS_FICHE = [
+  { code: 'taux_achevement',         libelle: "Taux d'achèvement (%)",        hautBon: true },
+  { code: 'taux_brut_admission',     libelle: "Taux brut d'admission (%)",    hautBon: true },
+  { code: 'taux_brut_scolarisation', libelle: 'Taux brut de scolarisation (%)', hautBon: true },
+  { code: 'taux_reussite_cep',       libelle: 'Taux de réussite au CEP (%)',  hautBon: true },
+  { code: 'ecart_tba_tap',           libelle: 'Écart admission − achèvement', hautBon: false },
+  { code: 'eleves_par_ecole',        libelle: 'Élèves par école',             hautBon: false },
+  { code: 'ips_tap',                 libelle: "Indice de parité (achèvement)", hautBon: true },
+];
 
 createApp({
   data() {
     return {
-      sante: {},
       annees: [],
       annee: null,
-      risques: [],
-      modele: {},
-      regionChoisie: null,
+      anneePrevision: null,
+      premiereAnnee: null,
+      classement: [],
+      classementPrecedent: [],
       fiche: null,
-      carte: null,
-      coucheRegions: null,
-      geojson: null,
+      sante: {},
+      modele: {},
+      incertitudes: {},
+      // Indicateurs de TOUTES les regions pour l'annee courante : sert au
+      // bandeau de chiffres cles et aux moyennes de comparaison.
+      indicateurs: [],
+      anneeIndicateurs: null,
+      aideOuverte: true,       // ouverte a la premiere visite (cf. monte())
       chargement: true,
       erreur: '',
+      carte: null,
+      coucheRegions: null,
+      etiquettes: [],
+      geojson: null,
     };
   },
 
   computed: {
-    donneesFictives() {
-      return this.sante.source_risque && this.sante.source_risque !== 'reel';
+    estPrevision() { return this.annee === this.anneePrevision; },
+
+    nbCritiques() {
+      return this.classement.filter((r) => this.classeNiveau(r.niveau) === 'critique').length;
     },
-    anneeMin() { return this.annees.length ? Math.min(...this.annees) : 2017; },
-    anneeMax() { return this.annees.length ? Math.max(...this.annees) : 2026; },
-    estPrevision() {
-      return this.risques.some((r) => r.est_prevision);
+
+    /** Somme, sur les 13 regions, des eleves non encore retrouves. */
+    elevesEnMoins() { return this.manquantDepuisLePic('effectif_primaire', 'recul_effectif_primaire_vs_pic'); },
+
+    ecolesEnMoins() { return this.manquantDepuisLePic('nombre_ecoles', 'recul_nombre_ecoles_vs_pic'); },
+
+    /** Nombre de regions qui changent de niveau par rapport a l'annee N-1. */
+    nbChangements() {
+      if (!this.classementPrecedent.length) return 0;
+      const avant = {};
+      this.classementPrecedent.forEach((r) => { avant[r.region_code] = r.niveau; });
+      return this.classement.filter(
+        (r) => avant[r.region_code] && avant[r.region_code] !== r.niveau).length;
     },
-    classement() {
-      return [...this.risques].sort((a, b) => b.score - a.score);
+
+    ficheScore() {
+      return this.fiche && this.fiche.risque_actuel ? this.fiche.risque_actuel.score : 0;
     },
-    parCode() {
-      const index = {};
-      this.risques.forEach((r) => { index[r.region_code] = r; });
-      return index;
+
+    ficheNiveau() {
+      return this.fiche && this.fiche.risque_actuel ? this.fiche.risque_actuel.niveau : '';
     },
-    incertitudes() {
-      const index = {};
-      (this.modele.incertitude_2026 || []).forEach((i) => {
-        index[i.region_code] = i;
+
+    facteursFiche() {
+      if (!this.fiche || !this.fiche.risque_actuel) return [];
+      return (this.fiche.risque_actuel.facteurs || '').split(';').filter(Boolean);
+    },
+
+    incertitudeFiche() {
+      if (!this.fiche || !this.fiche.risque_actuel) return null;
+      if (!this.fiche.risque_actuel.est_prevision) return null;
+      return this.incertitudes[this.fiche.region_code] || null;
+    },
+
+    /**
+     * Phrase de synthese construite a partir des donnees, jamais ecrite a la
+     * main : annee, niveau, score, tendance depuis le dernier changement de
+     * niveau, et les deux causes principales.
+     */
+    phraseSynthese() {
+      if (!this.fiche || !this.fiche.risque_actuel) return '';
+      const actuel = this.fiche.risque_actuel;
+      const niveau = this.libelleNiveau(actuel.niveau).toLowerCase();
+      const score = this.nombreFr(actuel.score, 1);
+      const nom = this.fiche.region_nom;
+      const quand = actuel.est_prevision
+        ? `En ${actuel.annee} (prévision)`
+        : `En ${actuel.annee}`;
+
+      let tendance = '';
+      const histo = this.fiche.historique_risque || [];
+      if (histo.length >= 2) {
+        const dernier = histo[histo.length - 1];
+        // On remonte tant que le niveau est le meme : donne l'annee a partir
+        // de laquelle la region est dans sa situation actuelle.
+        let depuis = dernier.annee;
+        for (let i = histo.length - 2; i >= 0; i -= 1) {
+          if (histo[i].niveau !== dernier.niveau) break;
+          depuis = histo[i].annee;
+        }
+        const premier = histo[0];
+        const ecart = dernier.score - premier.score;
+        if (depuis > premier.annee) {
+          tendance = `, ${ecart >= 0 ? 'en hausse' : 'en baisse'} depuis ${depuis}`;
+        } else if (Math.abs(ecart) >= 3) {
+          tendance = ecart > 0 ? ', en hausse sur la période' : ', en baisse sur la période';
+        } else {
+          tendance = ', stable sur la période';
+        }
+      }
+
+      const causes = this.facteursFiche.slice(0, 2)
+        .map((c) => this.minusculeInitiale(this.libelleFacteur(c)));
+      const phraseCauses = causes.length
+        ? ` Principales causes : ${causes.join(' ; ')}.`
+        : '';
+
+      const sujet = this.sujetRegion(nom);
+      return `${quand}, ${sujet.groupe} ${sujet.verbe} en risque ${niveau} `
+        + `(${score}/100)${tendance}.${phraseCauses}`;
+    },
+
+    /** Indicateurs de la region, confrontes a la moyenne des 13 regions. */
+    indicateursCompares() {
+      if (!this.fiche) return [];
+      const valeurs = {};
+      (this.fiche.indicateurs || []).forEach((i) => {
+        if (i.sexe === 'T') valeurs[i.indicateur] = i.valeur;
       });
-      return index;
+
+      return INDICATEURS_FICHE.map((def) => {
+        const valeur = valeurs[def.code];
+        if (valeur === undefined || valeur === null) return null;
+        const moyenne = this.moyenneNationale(def.code);
+        if (moyenne === null) return null;
+        const ecart = valeur - moyenne;
+        // Defavorable = la region est du mauvais cote de la moyenne.
+        const defavorable = def.hautBon ? ecart < 0 : ecart > 0;
+        return { ...def, valeur, moyenne, ecart, defavorable };
+      }).filter(Boolean);
     },
+
     phraseFiabilite() {
       const nom = (this.modele.modele_retenu || '').toLowerCase();
       const erreur = this.modele.mae_moyenne_glissante;
       if (!erreur) return '';
       const methode = nom.includes('naive')
-        ? "La prévision 2026 reprend le score de 2025 : testée sur les trois "
-          + "dernières années, cette méthode simple s'est révélée plus juste que "
-          + 'les deux modèles statistiques essayés'
-        : `La prévision 2026 vient du modèle « ${this.modele.modele_retenu} »`;
+        ? `La prévision ${this.anneePrevision} reprend le score de ${this.anneePrevision - 1} : `
+          + 'testée sur les trois dernières années, cette méthode simple s\'est révélée '
+          + 'plus juste que les deux modèles statistiques essayés'
+        : `La prévision ${this.anneePrevision} vient du modèle « ${this.modele.modele_retenu} »`;
       return `${methode}. En moyenne, elle se trompe d'environ `
         + `${this.nombreFr(erreur, 1)} points de score sur 100. `
-        + "À lire comme une alerte, pas comme une certitude.";
+        + 'À lire comme une alerte, pas comme une certitude.';
     },
-    ficheScore() {
-      return this.fiche && this.fiche.risque_actuel
-        ? this.fiche.risque_actuel.score : 0;
-    },
-    ficheNiveau() {
-      return this.fiche && this.fiche.risque_actuel
-        ? this.fiche.risque_actuel.niveau : 'Faible';
-    },
-    facteursFiche() {
-      if (!this.fiche || !this.fiche.risque_actuel) return [];
-      return (this.fiche.risque_actuel.facteurs || '')
-        .split(';').filter((code) => code.length);
-    },
-    indicateursCles() {
-      if (!this.fiche) return [];
-      const table = {};
-      this.fiche.indicateurs.forEach((ligne) => {
-        table[ligne.indicateur] = table[ligne.indicateur] || {};
-        table[ligne.indicateur][ligne.sexe] = ligne.valeur;
-      });
-      return INDICATEURS_FICHE
-        .filter(([code]) => table[code])
-        .map(([code, libelle]) => ({
-          code,
-          libelle,
-          G: this.valeurOuTiret(table[code].G, code),
-          F: this.valeurOuTiret(table[code].F, code),
-          T: this.valeurOuTiret(table[code].T, code),
-        }));
-    },
-    urlFichePdf() {
-      return `${BASE_API}/regions/${this.regionChoisie}/fiche.pdf`;
-    },
-    // La fiche de l'API decrit la situation la plus recente de la region. Pour
-    // eviter toute confusion avec l'annee du curseur, on rappelle l'annee
-    // affichee sur la carte des qu'elle differe.
-    pointAnneeChoisie() {
-      if (!this.fiche || !this.fiche.historique_risque) return null;
-      const point = this.fiche.historique_risque.find((p) => p.annee === this.annee);
-      return point || null;
-    },
-    anneeFicheDifferente() {
-      return Boolean(
-        this.fiche && this.fiche.risque_actuel && this.pointAnneeChoisie
-        && this.pointAnneeChoisie.annee !== this.fiche.risque_actuel.annee,
-      );
-    },
-    largeurSvg() {
-      const nombre = this.fiche ? this.fiche.historique_risque.length : 10;
-      return this.margeSvg + nombre * this.pasSvg + 6;
-    },
-    margeSvg() { return 22; },
-    pasSvg() { return 40; },
-    descriptionGraphique() {
-      if (!this.fiche) return '';
-      const points = this.fiche.historique_risque
-        .map((p) => `${p.annee} : ${Math.round(p.score)}`)
-        .join(', ');
-      return `Évolution du score de risque. ${points}.`;
-    },
-  },
-
-  watch: {
-    annee() { this.chargerRisque(); },
-  },
-
-  mounted() {
-    this.chargerTout();
   },
 
   methods: {
-    nombreFr(valeur, decimales) {
-      if (valeur === null || valeur === undefined || Number.isNaN(valeur)) {
-        return '—';
-      }
+    /** Nombre au format francais : virgule decimale, espace pour les milliers. */
+    nombreFr(valeur, decimales = 1) {
+      if (valeur === null || valeur === undefined || Number.isNaN(valeur)) return '—';
       return Number(valeur).toLocaleString('fr-FR', {
         minimumFractionDigits: decimales,
         maximumFractionDigits: decimales,
       });
     },
 
-    valeurOuTiret(valeur, code) {
-      if (valeur === null || valeur === undefined) return '—';
-      // Les ratios se lisent a 2 decimales, les taux a 1, les effectifs entiers.
-      if (code.startsWith('ips_')) return this.nombreFr(valeur, 2);
-      if (Number.isInteger(valeur)) return this.nombreFr(valeur, 0);
-      return this.nombreFr(valeur, 1);
-    },
-
     classeNiveau(niveau) {
-      return (niveau || '').toLowerCase().replace('é', 'e');
+      const n = (niveau || '').toLowerCase();
+      if (n.startsWith('crit')) return 'critique';
+      if (n.startsWith('mod')) return 'modere';
+      return 'faible';
     },
 
-    libelleNiveau(niveau) { return LIBELLES_NIVEAUX[niveau] || niveau; },
+    libelleNiveau(niveau) { return LIBELLES_NIVEAU[this.classeNiveau(niveau)]; },
 
-    couleurNiveau(niveau) { return COULEURS_NIVEAU[niveau] || '#8A9099'; },
+    couleurNiveau(niveau) { return COULEURS_RISQUE[this.classeNiveau(niveau)]; },
 
     libelleFacteur(code) {
       if (!code) return '—';
       return LIBELLES_FACTEURS[code] || code.replace(/_/g, ' ');
     },
 
-    // Deux premiers facteurs : avec un seul, la colonne affichait presque
-    // toujours « Ecart entre admission et achevement » et ne distinguait
-    // plus les regions. Le second facteur est celui qui separe le Sahel
-    // (fermetures d'ecoles) du Centre-Nord (recul des effectifs).
+    /**
+     * Met l'initiale en minuscule sans toucher au reste : un `toLowerCase()`
+     * global transformerait « CP1 » en « cp1 » et « CEP » en « cep ».
+     */
+    minusculeInitiale(texte) {
+      if (!texte) return '';
+      return texte.charAt(0).toLowerCase() + texte.slice(1);
+    },
+
+    /**
+     * Article defini + verbe accorde devant un nom de region, pour que la
+     * phrase de synthese se lise en francais correct. Verifie sur les 13
+     * regions : « l'Est », « les Cascades SONT », « la Boucle du Mouhoun ».
+     * Rend { groupe, verbe } car le pluriel change aussi le verbe.
+     */
+    sujetRegion(nom) {
+      if (!nom) return { groupe: '', verbe: 'est' };
+      const pluriels = ['Hauts-Bassins', 'Cascades'];
+      const feminins = ['Boucle du Mouhoun'];
+      if (pluriels.includes(nom)) return { groupe: `les ${nom}`, verbe: 'sont' };
+      if (feminins.includes(nom)) return { groupe: `la ${nom}`, verbe: 'est' };
+      // Elision devant une voyelle ou un h muet : « l'Est ».
+      if (/^[AEIOUYÉÈÊÀÂÎÔÛH]/i.test(nom)) return { groupe: `l'${nom}`, verbe: 'est' };
+      return { groupe: `le ${nom}`, verbe: 'est' };
+    },
+
+    /** Deux premiers facteurs : avec un seul, la colonne ne distinguait rien. */
     premiersFacteurs(facteurs) {
       const codes = (facteurs || '').split(';').filter(Boolean).slice(0, 2);
       if (!codes.length) return '—';
-      return codes.map((code) => this.libelleFacteur(code)).join(', ');
+      return codes.map((c) => this.libelleFacteur(c)).join(', ');
     },
 
-    incertitudeDe(code) { return this.incertitudes[code] || null; },
-
-    // Region « proche du seuil » : son intervalle probable chevauche 66.
-    procheDuSeuil(code) {
-      const borne = this.incertitudes[code];
-      if (!borne) return false;
-      return borne.score_bas < SEUIL_CRITIQUE && borne.score_haut >= SEUIL_CRITIQUE;
+    /**
+     * Evolution du score par rapport a l'annee precedente.
+     * Le seuil de 1 point evite d'annoncer une « hausse » pour 0,2 point,
+     * qui n'a aucun sens a l'echelle d'un indice compose.
+     */
+    evolution(ligne) {
+      const avant = this.classementPrecedent.find((r) => r.region_code === ligne.region_code);
+      if (!avant) return { sens: 'stable', fleche: '–', mot: 'n.d.' };
+      const delta = ligne.score - avant.score;
+      if (delta > 1) return { sens: 'hausse', fleche: '▲', mot: 'hausse' };
+      if (delta < -1) return { sens: 'baisse', fleche: '▼', mot: 'baisse' };
+      return { sens: 'stable', fleche: '=', mot: 'stable' };
     },
 
-    async chargerTout() {
-      this.erreur = '';
-      this.chargement = true;
-      try {
-        const [sante, annees, geojson] = await Promise.all([
-          recuperer('/sante'),
-          recuperer('/annees'),
-          recuperer('/geo/regions'),
-        ]);
-        this.sante = sante;
-        this.annees = annees;
-        this.geojson = geojson;
-        // Par defaut : la derniere annee observee, pas la prevision.
-        this.annee = annees.filter((a) => a <= 2025).pop() || annees[annees.length - 1];
-        try {
-          this.modele = await recuperer('/modele');
-        } catch (erreur) {
-          this.modele = {};     // l'application reste utilisable sans /modele
-        }
-        this.initialiserCarte();
-        await this.chargerRisque();
-      } catch (erreur) {
-        this.erreur = "Impossible de contacter l'API EduAlert BF. "
-          + 'Vérifiez que le serveur est démarré (run.bat ou run.sh), '
-          + `puis réessayez. Détail : ${erreur.message}`;
-      } finally {
-        this.chargement = false;
-      }
-    },
-
-    async chargerRisque() {
-      if (!this.annee) return;
-      this.chargement = true;
-      try {
-        this.risques = await recuperer(`/risque?annee=${this.annee}`);
-        this.dessinerRegions();
-      } catch (erreur) {
-        this.erreur = `Pas de données de risque pour ${this.annee}. `
-          + `Détail : ${erreur.message}`;
-      } finally {
-        this.chargement = false;
-      }
-    },
-
-    initialiserCarte() {
-      if (this.carte) return;
-      // Fond neutre, sans tuiles : l'application fonctionne hors ligne.
-      // zoomSnap sous 1 : fitBounds peut alors remplir le cadre au lieu de
-      // laisser une bande vide (le pays est plus large que haut).
-      this.carte = L.map('carte', {
-        zoomControl: true,
-        attributionControl: false,
-        scrollWheelZoom: false,
-        zoomSnap: 0.15,
-        zoomDelta: 0.5,
+    /**
+     * Somme du manque depuis le pic, en valeur absolue.
+     * Le CSV donne un POURCENTAGE de recul ; on le reconvertit en effectif a
+     * partir de la valeur de l'annee, sinon on additionnerait des pourcentages.
+     */
+    manquantDepuisLePic(codeValeur, codeRecul) {
+      let total = 0;
+      const parRegion = {};
+      this.indicateurs.forEach((i) => {
+        if (i.sexe !== 'T') return;
+        if (i.indicateur !== codeValeur && i.indicateur !== codeRecul) return;
+        parRegion[i.region_code] = parRegion[i.region_code] || {};
+        parRegion[i.region_code][i.indicateur] = i.valeur;
       });
-      this.carte.setView([12.3, -1.6], 6);
+      Object.values(parRegion).forEach((r) => {
+        const actuel = r[codeValeur];
+        const reculPct = r[codeRecul];
+        if (actuel === undefined || reculPct === undefined) return;
+        const perte = -reculPct;                        // le CSV stocke un nombre negatif
+        if (perte <= 0) return;                         // region au-dessus de son pic
+        const pic = actuel / (1 - perte / 100);
+        total += pic - actuel;
+      });
+      return Math.round(total);
+    },
+
+    /** Moyenne d'un indicateur sur les 13 regions, sexe « Total ». */
+    moyenneNationale(code) {
+      const valeurs = this.indicateurs
+        .filter((i) => i.indicateur === code && i.sexe === 'T' && i.valeur !== null)
+        .map((i) => i.valeur);
+      if (!valeurs.length) return null;
+      return valeurs.reduce((a, b) => a + b, 0) / valeurs.length;
+    },
+
+    basculerAide() {
+      this.aideOuverte = !this.aideOuverte;
+      try { localStorage.setItem('edualert-aide-vue', '1'); } catch (e) { /* navigation privee */ }
+    },
+
+    imprimer() { window.print(); },
+
+    async json(chemin) {
+      const reponse = await fetch(chemin);
+      if (!reponse.ok) throw new Error(`${chemin} : ${reponse.status}`);
+      return reponse.json();
+    },
+
+    async choisirAnnee(a) {
+      this.annee = a;
+      await this.chargerAnnee();
+    },
+
+    /** Charge le classement, l'annee precedente et les indicateurs. */
+    async chargerAnnee() {
+      try {
+        this.chargement = true;
+        const [courant, indicateurs] = await Promise.all([
+          this.json(`../risque?annee=${this.annee}`),
+          this.json(`../indicateurs?annee=${this.anneeDonnees()}`),
+        ]);
+        this.classement = courant;
+        this.indicateurs = indicateurs;
+
+        if (this.annee > this.premiereAnnee) {
+          try {
+            this.classementPrecedent = await this.json(`../risque?annee=${this.annee - 1}`);
+          } catch (e) {
+            this.classementPrecedent = [];
+          }
+        } else {
+          this.classementPrecedent = [];
+        }
+
+        this.dessinerRegions();
+        this.erreur = '';
+      } catch (e) {
+        this.erreur = `Impossible de charger les données de ${this.annee}. `
+          + 'Vérifiez que le service est démarré, puis rechargez la page.';
+      } finally {
+        this.chargement = false;
+      }
+    },
+
+    /**
+     * Les indicateurs s'arretent a la derniere annee OBSERVEE : demander
+     * l'annee de prevision renverrait une liste vide et mettrait tous les
+     * chiffres cles a zero.
+     */
+    anneeDonnees() {
+      return this.estPrevision ? this.anneePrevision - 1 : this.annee;
+    },
+
+    async ouvrirFiche(code) {
+      try {
+        this.fiche = await this.json(`../regions/${code}/fiche`);
+        this.mettreEnValeur(code);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (e) {
+        this.erreur = `Impossible d'ouvrir la fiche de ${code}.`;
+      }
+    },
+
+    ouvrirFicheDepuisListe(evenement) {
+      const code = evenement.target.value;
+      if (code) this.ouvrirFiche(code); else this.fermerFiche();
+    },
+
+    fermerFiche() {
+      this.fiche = null;
+      this.dessinerRegions();
+    },
+
+    mettreEnValeur(code) {
+      if (!this.coucheRegions) return;
+      this.coucheRegions.eachLayer((couche) => {
+        const estCelle = couche.feature.properties.region_code === code;
+        couche.setStyle({ weight: estCelle ? 3.5 : this.epaisseur(couche.feature) });
+      });
+    },
+
+    epaisseur(feature) {
+      const ligne = this.classement.find((r) => r.region_code === feature.properties.region_code);
+      // Contour renforce pour les regions critiques : la couleur seule ne
+      // suffit pas a les faire ressortir d'un coup d'oeil.
+      return ligne && this.classeNiveau(ligne.niveau) === 'critique' ? 2.2 : 1;
     },
 
     dessinerRegions() {
       if (!this.carte || !this.geojson) return;
-      if (this.coucheRegions) {
-        this.coucheRegions.remove();
-      }
-      const application = this;
+
+      if (this.coucheRegions) this.carte.removeLayer(this.coucheRegions);
+      this.etiquettes.forEach((e) => this.carte.removeLayer(e));
+      this.etiquettes = [];
+
+      const parCode = {};
+      this.classement.forEach((r) => { parCode[r.region_code] = r; });
+
       this.coucheRegions = L.geoJSON(this.geojson, {
-        style(element) {
-          const code = application.codeDeLElement(element);
-          const donnee = application.parCode[code];
-          const prevision = donnee && donnee.est_prevision;
+        style: (feature) => {
+          const ligne = parCode[feature.properties.region_code];
           return {
-            fillColor: donnee ? application.couleurNiveau(donnee.niveau) : '#E3E5E8',
-            fillOpacity: 0.82,
-            color: prevision ? '#2B333B' : '#FFFFFF',
-            weight: prevision ? 1.6 : 1.2,
-            dashArray: prevision ? '4 3' : null,
+            fillColor: ligne ? this.couleurNiveau(ligne.niveau) : '#D5DBE0',
+            fillOpacity: 0.88,
+            color: this.estPrevision ? '#2B333B' : '#FFFFFF',
+            weight: this.epaisseur(feature),
+            dashArray: this.estPrevision ? '4 3' : null,
           };
         },
-        onEachFeature(element, couche) {
-          const code = application.codeDeLElement(element);
-          const donnee = application.parCode[code];
-          if (!donnee) return;
-          const incertitude = application.incertitudeDe(code);
-          let contenu = `<strong>${donnee.region_nom}</strong>`
-            + `<span class="valeur">Score ${application.nombreFr(donnee.score, 1)}`
-            + ` · ${application.libelleNiveau(donnee.niveau)}</span>`;
-          if (donnee.est_prevision && incertitude) {
-            contenu += `<span class="valeur">Intervalle `
-              + `${application.nombreFr(incertitude.score_bas, 1)} – `
-              + `${application.nombreFr(incertitude.score_haut, 1)}</span>`;
+        onEachFeature: (feature, couche) => {
+          const code = feature.properties.region_code;
+          const ligne = parCode[code];
+          const nom = (ligne && ligne.region_nom) || feature.properties.region_nom || code;
+          if (ligne) {
+            couche.bindTooltip(
+              `<strong>${nom}</strong><br>Score ${this.nombreFr(ligne.score, 1)} `
+              + `— ${this.libelleNiveau(ligne.niveau)}`,
+              { sticky: true });
           }
-          couche.bindTooltip(contenu, {
-            className: 'etiquette-region',
-            sticky: true,
-            direction: 'top',
-          });
-          couche.on('click', () => application.ouvrirFiche(code));
-          couche.on('mouseover', () => couche.setStyle({ fillOpacity: 0.95, weight: 2.4 }));
-          couche.on('mouseout', () => application.coucheRegions.resetStyle(couche));
+          couche.on('click', () => this.ouvrirFiche(code));
+          couche.on('keydown', (e) => { if (e.originalEvent.key === 'Enter') this.ouvrirFiche(code); });
         },
       }).addTo(this.carte);
 
-      const limites = this.coucheRegions.getBounds();
-      if (limites.isValid()) {
-        this.carte.fitBounds(limites, { padding: [12, 12] });
-      }
+      this.poserEtiquettes(parCode);
+      this.cadrer();
     },
 
-    // Le GeoJSON de l'equipe porte le code region dans l'une de ces proprietes.
-    codeDeLElement(element) {
-      const p = element.properties || {};
-      return p.region_code || p.REGION_CODE || p.code || p.admin1Name || '';
+    /**
+     * Nom de chaque region ecrit en permanence sur la carte.
+     * Leaflet place les info-bulles au centre du polygone ; pour les regions
+     * etroites, on reduit la taille du texte plutot que de le laisser deborder
+     * sur la voisine.
+     */
+    poserEtiquettes(parCode) {
+      this.coucheRegions.eachLayer((couche) => {
+        const code = couche.feature.properties.region_code;
+        const ligne = parCode[code];
+        const nom = (ligne && ligne.region_nom) || couche.feature.properties.region_nom || code;
+
+        const bornes = couche.getBounds();
+        const largeurDeg = bornes.getEast() - bornes.getWest();
+        // Seuil mesure sur le fond de carte : au-dela de ~11 caracteres dans
+        // un polygone etroit, l'etiquette chevauche la region voisine.
+        const petite = nom.length > 11 && largeurDeg < 1.6;
+
+        const etiquette = L.tooltip({
+          permanent: true,
+          direction: 'center',
+          className: 'etiquette-region' + (petite ? ' etiquette-region--petite' : ''),
+          opacity: 1,
+        })
+          .setContent(nom)
+          .setLatLng(couche.getBounds().getCenter());
+
+        etiquette.addTo(this.carte);
+        this.etiquettes.push(etiquette);
+      });
     },
 
-    async ouvrirFiche(code) {
-      this.regionChoisie = code;
-      this.fiche = null;
+    cadrer() {
+      if (!this.coucheRegions) return;
+      this.carte.fitBounds(this.coucheRegions.getBounds(), { padding: [12, 12] });
+    },
+
+    async monte() {
       try {
-        this.fiche = await recuperer(`/regions/${code}/fiche`);
-      } catch (erreur) {
-        this.erreur = `Impossible de charger la fiche de ${code}. `
-          + `Détail : ${erreur.message}`;
-      }
-    },
+        // L'encadre d'aide est ouvert a la PREMIERE visite seulement.
+        try {
+          if (localStorage.getItem('edualert-aide-vue')) this.aideOuverte = false;
+        } catch (e) { /* navigation privee : on laisse ouvert */ }
 
-    fermerFiche() {
-      this.regionChoisie = null;
-      this.fiche = null;
+        const [sante, annees, geojson] = await Promise.all([
+          this.json('../sante'),
+          this.json('../annees'),
+          this.json('../geo/regions'),
+        ]);
+        this.sante = sante;
+        this.annees = annees;
+        this.geojson = geojson;
+        this.premiereAnnee = Math.min(...annees);
+        this.anneePrevision = Math.max(...annees);
+        // On ouvre sur la derniere annee OBSERVEE, pas sur la prevision : un
+        // chiffre prevu ne doit pas etre la premiere chose que l'on voit.
+        this.annee = this.anneePrevision - 1;
+        this.anneeIndicateurs = this.annee;
+
+        this.carte = L.map('carte', {
+          zoomControl: true,
+          attributionControl: false,
+          scrollWheelZoom: false,     // evite de zoomer par accident en faisant defiler
+          zoomSnap: 0.15,
+        });
+
+        try {
+          this.modele = await this.json('../modele');
+          // La cle est « incertitude_2026 » dans le contrat de l'API ; on
+          // garde une solution de repli si elle est un jour renommee.
+          const inc = this.modele.incertitude_2026 || this.modele.incertitude || [];
+          inc.forEach((i) => { this.incertitudes[i.region_code] = i; });
+        } catch (e) { this.modele = {}; }
+
+        await this.chargerAnnee();
+        window.addEventListener('resize', () => this.cadrer());
+      } catch (e) {
+        this.chargement = false;
+        this.erreur = 'Impossible de contacter le service. Vérifiez qu\'il est démarré '
+          + '(run.sh ou run.bat), puis rechargez la page.';
+      }
     },
   },
+
+  mounted() { this.monte(); },
 }).mount('#application');

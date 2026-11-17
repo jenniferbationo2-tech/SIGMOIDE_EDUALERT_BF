@@ -3,281 +3,414 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>EduAlert BF – Risque de décrochage scolaire au primaire, par région</title>
-  <meta name="description" content="Cartographie et anticipation du risque de décrochage scolaire au primaire dans les 13 régions du Burkina Faso (données DGESS/MENAPLN 2016-2025).">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23FAFAF8'/%3E%3Cpath d='M4 22h5v-7H4zM13 22h5V9h-5zM22 22h5V13h-5z' fill='%2335506B'/%3E%3C/svg%3E">
+  <title>EduAlert BF — Alerte précoce sur le décrochage scolaire au primaire</title>
+  <meta name="description"
+        content="Score de risque de décrochage scolaire au primaire, par région du Burkina Faso, 2017-2026. Prototype du Data Challenge Burkina 2026.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='8' fill='%23EF2B2D'/><rect y='8' width='16' height='8' fill='%23009E49'/><circle cx='8' cy='8' r='3' fill='%23FCD116'/></svg>">
   <link rel="stylesheet" href="vendor/leaflet.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="application">
+<div id="application" v-cloak>
 
-  <!-- Bandeau d'alerte : uniquement si l'API signale des donnees fictives -->
-  <div v-if="donneesFictives" class="bandeau-fictif" role="alert">
-    <strong>Données fictives</strong> — cette démonstration n'utilise pas les
-    données réelles. Ne pas diffuser.
+  <!-- 1. Bande tricolore + en-tête ------------------------------------ -->
+  <div class="bande-enveloppe">
+    <div class="bande-nationale" role="presentation"></div>
+    <span class="bande-nationale__etoile" aria-hidden="true">★</span>
   </div>
 
   <header class="entete">
-    <div class="entete-titre">
-      <h1>EduAlert BF</h1>
-      <p class="sous-titre">Risque de décrochage scolaire au primaire, par région</p>
-    </div>
-    <div class="entete-badge">
-      <span class="badge" :class="'badge--' + (sante.source_risque === 'reel' ? 'reel' : 'fictif')">
-        {{ sante.source_risque === 'reel' ? 'Données réelles' : 'Données fictives' }}
-      </span>
-      <span class="badge-source">DGESS / MENAPLN · 2016-2025</span>
+    <div class="entete__interieur">
+      <div>
+        <h1>EduAlert BF</h1>
+        <p class="entete__sous-titre">
+          Alerte précoce sur le décrochage scolaire au primaire, par région
+        </p>
+      </div>
+      <div class="entete__mentions">
+        <span class="etiquette etiquette--source" v-if="sante.source_risque">
+          {{ sante.source_risque === 'reel' ? 'Données réelles' : 'Données d\'exemple' }}
+        </span>
+        <span class="entete__source-detail">DGESS / MENAPLN · 2016-2025</span>
+        <span class="etiquette etiquette--prototype">
+          Prototype – Data Challenge Burkina 2026 · Édition Éducation
+        </span>
+      </div>
     </div>
   </header>
 
-  <p v-if="erreur" class="message-erreur" role="alert">
-    {{ erreur }}
-    <button type="button" class="lien-bouton" @click="chargerTout">Réessayer</button>
-  </p>
+  <main class="page">
 
-  <main class="disposition" v-if="!erreur">
+    <p v-if="erreur" class="message-erreur" role="alert">{{ erreur }}</p>
 
-    <!-- ===================== Colonne carte ===================== -->
-    <section class="colonne-carte" aria-label="Carte du risque par région">
-
-      <div class="barre-annees">
-        <label for="curseur-annee" class="etiquette-annee">Année</label>
-        <input id="curseur-annee" type="range" class="curseur"
-               :min="anneeMin" :max="anneeMax" step="1"
-               v-model.number="annee"
-               :aria-label="'Choisir l\'année affichée, entre ' + anneeMin + ' et ' + anneeMax"
-               :aria-valuetext="annee + (estPrevision ? ' (prévision)' : ' (observé)')">
-        <output class="valeur-annee" :class="{ 'valeur-annee--prevision': estPrevision }">
-          {{ annee }}<span v-if="estPrevision" class="etiquette-prevision">prévision</span>
-        </output>
-      </div>
-
-      <p v-if="estPrevision" class="mention-prevision">
-        Prévision du modèle — contours en pointillés sur la carte.
-      </p>
-
-      <div class="cadre-carte">
-        <div id="carte" role="application"
-             aria-label="Carte des 13 régions colorées selon le niveau de risque"></div>
-        <p v-if="chargement" class="etat-chargement">Chargement des données…</p>
-      </div>
-
-      <div class="legende">
-        <h2 class="titre-legende">Niveau de risque</h2>
-        <ul class="liste-legende">
-          <li><span class="puce" style="background:#4C9A72"></span>Faible <span class="seuil">&lt; 33</span></li>
-          <li><span class="puce" style="background:#E0A43A"></span>Modéré <span class="seuil">33 – 66</span></li>
-          <li><span class="puce" style="background:#C2412D"></span>Critique <span class="seuil">≥ 66</span></li>
-        </ul>
-        <p class="note-legende">
-          Indice composite de déperdition scolaire (0 à 100). Ce n'est pas un taux
-          d'abandon mesuré.
-        </p>
-      </div>
-
-      <!-- Encadre fiabilite -->
-      <div class="encadre-fiabilite" v-if="modele.modele_retenu">
-        <h2 class="titre-encadre">Fiabilité de la prévision</h2>
-        <p>{{ phraseFiabilite }}</p>
+    <!-- 2. Quatre chiffres clés --------------------------------------- -->
+    <section aria-labelledby="titre-chiffres">
+      <h2 id="titre-chiffres" class="hors-ecran">Chiffres clés de l'année {{ annee }}</h2>
+      <div class="chiffres">
+        <div class="chiffre">
+          <div class="chiffre__valeur chiffre__valeur--critique">
+            {{ nbCritiques }}<span class="chiffre__unite"> / 13</span>
+          </div>
+          <div class="chiffre__intitule">Régions en risque critique</div>
+          <p class="chiffre__explication">Score de 66 ou plus sur 100 en {{ annee }}.</p>
+        </div>
+        <div class="chiffre">
+          <div class="chiffre__valeur">{{ nombreFr(elevesEnMoins, 0) }}</div>
+          <div class="chiffre__intitule">Élèves du primaire en moins</div>
+          <p class="chiffre__explication">
+            Écart entre les effectifs de {{ anneeIndicateurs }} et le meilleur niveau
+            atteint par chaque région.
+          </p>
+        </div>
+        <div class="chiffre">
+          <div class="chiffre__valeur">{{ nombreFr(ecolesEnMoins, 0) }}</div>
+          <div class="chiffre__intitule">Écoles en moins</div>
+          <p class="chiffre__explication">
+            Même calcul sur le nombre d'écoles : mesure la rupture de l'offre scolaire.
+          </p>
+        </div>
+        <div class="chiffre">
+          <div class="chiffre__valeur">{{ nbChangements }}</div>
+          <div class="chiffre__intitule">Régions qui changent de niveau</div>
+          <p class="chiffre__explication">
+            {{ annee > premiereAnnee
+               ? 'Par rapport à ' + (annee - 1) + ' : passage d\'un niveau à un autre.'
+               : 'Première année disponible : aucune comparaison possible.' }}
+          </p>
+        </div>
       </div>
     </section>
 
-    <!-- ===================== Colonne panneau ===================== -->
-    <section class="colonne-panneau">
-
-      <!-- Classement -->
-      <div class="bloc" v-if="!regionChoisie">
-        <h2 class="titre-bloc">Classement {{ annee }}</h2>
-        <p class="aide-bloc">
-          Du plus au moins à risque. Cliquez sur une région pour ouvrir sa fiche.
-        </p>
-        <table class="tableau-classement">
-          <caption class="hors-ecran">Classement des régions par score de risque</caption>
-          <thead>
-            <tr>
-              <th scope="col" class="col-rang">#</th>
-              <th scope="col">Région</th>
-              <th scope="col" class="col-nombre">Score</th>
-              <th scope="col" v-if="estPrevision" class="col-nombre">Intervalle</th>
-              <th scope="col">Facteurs principaux</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(ligne, index) in classement" :key="ligne.region_code"
-                tabindex="0" class="ligne-cliquable"
-                :class="{ 'ligne-seuil': estPrevision && procheDuSeuil(ligne.region_code) }"
-                @click="ouvrirFiche(ligne.region_code)"
-                @keydown.enter="ouvrirFiche(ligne.region_code)"
-                @keydown.space.prevent="ouvrirFiche(ligne.region_code)">
-              <td class="col-rang">{{ index + 1 }}</td>
-              <td>
-                {{ ligne.region_nom }}
-                <span class="marque-seuil" v-if="estPrevision && procheDuSeuil(ligne.region_code)"
-                      title="L'intervalle probable chevauche le seuil critique de 66">
-                  proche du seuil
-                </span>
-              </td>
-              <td class="col-nombre">
-                <span class="pastille" :class="'pastille--' + classeNiveau(ligne.niveau)">
-                  {{ nombreFr(ligne.score, 1) }}
-                </span>
-              </td>
-              <td class="col-nombre petit" v-if="estPrevision">
-                <template v-if="incertitudeDe(ligne.region_code)">
-                  {{ nombreFr(incertitudeDe(ligne.region_code).score_bas, 1) }} –
-                  {{ nombreFr(incertitudeDe(ligne.region_code).score_haut, 1) }}
-                  <br>
-                  <span class="proba">{{ nombreFr(incertitudeDe(ligne.region_code).proba_critique * 100, 0) }}&nbsp;% critique</span>
-                </template>
-                <template v-else>—</template>
-              </td>
-              <td class="petit">{{ premiersFacteurs(ligne.facteurs) }}</td>
-            </tr>
-          </tbody>
-        </table>
+    <!-- 3. Comment lire cette page ------------------------------------ -->
+    <section class="aide">
+      <h2 class="hors-ecran">Comment lire cette page</h2>
+      <button type="button" class="aide__bouton"
+              :aria-expanded="aideOuverte ? 'true' : 'false'"
+              aria-controls="aide-contenu"
+              @click="basculerAide">
+        <span aria-hidden="true">?</span>
+        Comment lire cette page
+        <span class="aide__chevron" aria-hidden="true">{{ aideOuverte ? '▲' : '▼' }}</span>
+      </button>
+      <div id="aide-contenu" class="aide__contenu" v-show="aideOuverte">
+        <ol class="etapes">
+          <li class="etape">
+            <div class="etape__titre">Choisir une année</div>
+            <p>Les boutons ci-dessous changent l'année affichée. La dernière,
+               « 2026 », est une prévision : elle n'est pas encore observée.</p>
+          </li>
+          <li class="etape">
+            <div class="etape__titre">Lire les couleurs</div>
+            <p>Vert : risque faible. Orange : risque modéré. Rouge : risque critique,
+               la région demande une attention immédiate.</p>
+          </li>
+          <li class="etape">
+            <div class="etape__titre">Ouvrir sa région</div>
+            <p>Cliquez sur la carte, sur une ligne du classement, ou choisissez votre
+               région dans la liste. Vous obtenez une fiche à imprimer.</p>
+          </li>
+        </ol>
       </div>
+    </section>
 
-      <!-- Fiche region -->
-      <div class="bloc" v-if="regionChoisie">
-        <button type="button" class="bouton-retour" @click="fermerFiche">
-          ← Retour au classement
-        </button>
+    <!-- 4 et 5. Année et choix de région ------------------------------ -->
+    <section class="bloc">
+      <div class="barre-outils">
+        <div>
+          <h2 class="titre-section titre-section--accent" id="titre-annee">Année affichée</h2>
+          <div class="annees" role="group" aria-labelledby="titre-annee">
+            <button v-for="a in annees" :key="a"
+                    type="button"
+                    class="annee-bouton"
+                    :class="{ 'annee-bouton--prevision': a === anneePrevision }"
+                    :aria-pressed="a === annee ? 'true' : 'false'"
+                    @click="choisirAnnee(a)">
+              {{ a }}<template v-if="a === anneePrevision"> – prévision</template>
+            </button>
+          </div>
+        </div>
 
-        <template v-if="fiche">
-          <h2 class="titre-bloc">{{ fiche.region_nom }}</h2>
+        <div class="choix-region">
+          <label for="choix-region">Choisir ma région</label>
+          <select id="choix-region" :value="fiche ? fiche.region_code : ''"
+                  @change="ouvrirFicheDepuisListe($event)">
+            <option value="">— Sélectionner une région —</option>
+            <option v-for="r in classement" :key="r.region_code" :value="r.region_code">
+              {{ r.region_nom }}
+            </option>
+          </select>
+        </div>
+      </div>
+    </section>
 
-          <div class="entete-score">
-            <div class="score-grand" :class="'texte--' + classeNiveau(ficheNiveau)">
-              {{ nombreFr(ficheScore, 1) }}<span class="sur-cent">/100</span>
-            </div>
-            <div class="bloc-niveau">
-              <span class="pastille pastille--grande"
-                    :class="'pastille--' + classeNiveau(ficheNiveau)">
+    <div class="disposition">
+
+      <!-- 6. Carte ---------------------------------------------------- -->
+      <section class="colonne-carte" aria-labelledby="titre-carte">
+        <div class="bloc" style="margin-top:0">
+          <h2 class="titre-section titre-section--accent" id="titre-carte">
+            Carte du risque — {{ annee }}<template v-if="estPrevision"> (prévision)</template>
+          </h2>
+          <p class="note" v-if="estPrevision">
+            Les contours en pointillés indiquent une prévision du modèle, pas une
+            observation.
+          </p>
+          <div class="cadre-carte">
+            <div id="carte" role="application"
+                 aria-label="Carte des 13 régions du Burkina Faso colorées selon le niveau de risque"></div>
+            <p v-if="chargement" class="etat-chargement">Chargement des données…</p>
+          </div>
+
+          <div class="legende">
+            <h3 class="titre-section">Niveau de risque</h3>
+            <ul class="liste-legende">
+              <li><span class="puce" style="background:#4C9A72"></span>Faible <span class="seuil">moins de 33</span></li>
+              <li><span class="puce" style="background:#E0A43A"></span>Modéré <span class="seuil">33 à 66</span></li>
+              <li><span class="puce" style="background:#B3261E"></span>Critique <span class="seuil">66 et plus</span></li>
+            </ul>
+            <p class="note" style="margin-top:7px">
+              Indice composite de déperdition scolaire, de 0 à 100. Ce n'est pas un taux
+              d'abandon mesuré.
+            </p>
+          </div>
+        </div>
+
+        <div class="bloc" v-if="modele.modele_retenu">
+          <h2 class="titre-section titre-section--accent">Fiabilité de la prévision</h2>
+          <p class="note">{{ phraseFiabilite }}</p>
+        </div>
+      </section>
+
+      <!-- 7 et 8. Classement ou fiche --------------------------------- -->
+      <section class="colonne-panneau" aria-live="polite">
+
+        <!-- 7. Classement -->
+        <div class="bloc" style="margin-top:0" v-if="!fiche">
+          <h2 class="titre-section titre-section--accent">Classement {{ annee }}</h2>
+          <p class="note consigne-ecran">Cliquez sur une région pour ouvrir sa fiche.</p>
+          <table class="tableau-classement">
+            <caption class="hors-ecran">
+              Classement des 13 régions par score de risque pour {{ annee }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col" class="col-rang">#</th>
+                <th scope="col">Région</th>
+                <th scope="col" class="col-nombre">Score</th>
+                <th scope="col" class="col-evolution">Évolution</th>
+                <th scope="col" class="col-facteurs">Facteurs principaux</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(ligne, i) in classement" :key="ligne.region_code"
+                  class="ligne-cliquable" tabindex="0"
+                  @click="ouvrirFiche(ligne.region_code)"
+                  @keydown.enter="ouvrirFiche(ligne.region_code)"
+                  @keydown.space.prevent="ouvrirFiche(ligne.region_code)">
+                <td class="col-rang">{{ i + 1 }}</td>
+                <td>
+                  <strong>{{ ligne.region_nom }}</strong>
+                  <span class="pastille pastille--menue"
+                        :class="'pastille--' + classeNiveau(ligne.niveau)">
+                    {{ libelleNiveau(ligne.niveau) }}
+                  </span>
+                </td>
+                <td class="col-nombre"><strong>{{ nombreFr(ligne.score, 1) }}</strong></td>
+                <td class="col-evolution">
+                  <span class="evolution" :class="'evolution--' + evolution(ligne).sens">
+                    <span class="evolution__fleche" aria-hidden="true">{{ evolution(ligne).fleche }}</span>
+                    {{ evolution(ligne).mot }}
+                  </span>
+                </td>
+                <td class="petit col-facteurs">{{ premiersFacteurs(ligne.facteurs) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 8. Fiche région -->
+        <div class="bloc" style="margin-top:0" v-else>
+          <button type="button" class="bouton-retour" @click="fermerFiche">
+            <span aria-hidden="true">←</span> Retour au classement
+          </button>
+
+          <div class="fiche__entete">
+            <h2 class="fiche__titre">{{ fiche.region_nom }}</h2>
+            <div class="entete-score">
+              <span class="score-grand" :class="'texte--' + classeNiveau(ficheNiveau)">
+                {{ nombreFr(ficheScore, 1) }}<span class="sur-cent">/100</span>
+              </span>
+              <span class="pastille pastille--grande" :class="'pastille--' + classeNiveau(ficheNiveau)">
                 {{ libelleNiveau(ficheNiveau) }}
               </span>
-              <p class="annee-score">
-                Situation la plus récente : {{ fiche.risque_actuel.annee }}
-                <template v-if="fiche.risque_actuel.est_prevision"> · prévision du modèle</template>
-                <template v-else> · observé</template>
-              </p>
             </div>
           </div>
 
-          <p class="ligne-annee-choisie" v-if="anneeFicheDifferente">
-            Année affichée sur la carte : <strong>{{ pointAnneeChoisie.annee }}</strong> —
-            score {{ nombreFr(pointAnneeChoisie.score, 1) }}
-            ({{ libelleNiveau(pointAnneeChoisie.niveau) }}).
-            La fiche ci-dessous décrit l'état le plus récent de la région.
-          </p>
+          <!-- LA phrase à retenir -->
+          <p class="synthese">{{ phraseSynthese }}</p>
 
-          <p v-if="fiche.incertitude_prevision" class="ligne-incertitude">
-            Intervalle probable :
-            <strong>{{ nombreFr(fiche.incertitude_prevision.score_bas, 1) }}
-            à {{ nombreFr(fiche.incertitude_prevision.score_haut, 1) }}</strong>
-            · probabilité d'être critique :
-            <strong>{{ nombreFr(fiche.incertitude_prevision.proba_critique * 100, 0) }}&nbsp;%</strong>
-          </p>
+          <div class="encadre-info" v-if="incertitudeFiche">
+            Intervalle probable : <strong>{{ nombreFr(incertitudeFiche.score_bas, 1) }}</strong>
+            à <strong>{{ nombreFr(incertitudeFiche.score_haut, 1) }}</strong> ·
+            probabilité d'être critique :
+            <strong>{{ nombreFr(incertitudeFiche.proba_critique * 100, 0) }} %</strong>
+          </div>
 
-          <h3 class="titre-section">Facteurs principaux</h3>
+          <h3 class="titre-sous-section">Causes principales</h3>
           <ul class="liste-facteurs">
             <li v-for="code in facteursFiche" :key="code">{{ libelleFacteur(code) }}</li>
           </ul>
 
-          <h3 class="titre-section">Évolution du score</h3>
-          <!-- Graphique en barres dessine a la main, sans bibliotheque -->
-          <svg class="graphique" :viewBox="'0 0 ' + largeurSvg + ' 150'"
-               role="img" :aria-label="descriptionGraphique">
-            <line :x1="margeSvg" y1="120" :x2="largeurSvg - 6" y2="120"
-                  stroke="#C9CFD6" stroke-width="1"></line>
-            <line :x1="margeSvg" :y1="120 - 0.66 * 100" :x2="largeurSvg - 6"
-                  :y2="120 - 0.66 * 100" stroke="#C2412D" stroke-width="1"
-                  stroke-dasharray="3 3" opacity="0.5"></line>
-            <g v-for="(point, index) in fiche.historique_risque" :key="point.annee">
-              <rect v-if="point.annee === annee" :x="margeSvg + index * pasSvg"
-                    y="6" :width="pasSvg - 1" height="116" fill="#EDF1F5"></rect>
-              <rect :x="margeSvg + index * pasSvg + 2"
-                    :y="120 - point.score"
-                    :width="pasSvg - 5"
-                    :height="point.score"
-                    :fill="point.est_prevision ? 'none' : couleurNiveau(point.niveau)"
-                    :stroke="couleurNiveau(point.niveau)"
-                    :stroke-dasharray="point.est_prevision ? '3 2' : null"
-                    :stroke-width="point.annee === annee ? 2.8 : 1.5"></rect>
-              <text :x="margeSvg + index * pasSvg + (pasSvg - 1) / 2"
-                    :y="120 - point.score - 4" class="valeur-barre"
-                    text-anchor="middle">{{ Math.round(point.score) }}</text>
-              <text :x="margeSvg + index * pasSvg + (pasSvg - 1) / 2" y="133"
-                    class="annee-barre" :class="{ 'annee-barre--choisie': point.annee === annee }"
-                    text-anchor="middle">
-                {{ String(point.annee).slice(2) }}
-              </text>
-            </g>
-            <text :x="margeSvg - 4" y="123" class="repere-axe" text-anchor="end">0</text>
-            <text :x="margeSvg - 4" :y="120 - 66 + 3" class="repere-axe"
-                  text-anchor="end">66</text>
-          </svg>
-          <p class="note-graphique">
-            Barre pleine : observé. Contour en pointillés : prévision.
-            Ligne rouge : seuil critique (66).
-          </p>
+          <h3 class="titre-sous-section">Évolution du score</h3>
+          <div class="graphique">
+            <div class="barre-annees">
+              <div class="annee-colonne" v-for="h in fiche.historique_risque" :key="h.annee">
+                <span class="annee-score" :class="'texte--' + classeNiveau(h.niveau)">
+                  {{ Math.round(h.score) }}
+                </span>
+                <div class="annee-barre"
+                     :class="{ 'annee-barre--prevision': h.est_prevision,
+                               'annee-barre--choisie': h.annee === annee }"
+                     :style="{ height: (h.score * 0.95) + '%',
+                               background: couleurNiveau(h.niveau) }"></div>
+                <span class="annee-etiquette"
+                      :class="{ 'annee-etiquette--choisie': h.annee === annee }">
+                  {{ String(h.annee).slice(2) }}
+                </span>
+              </div>
+            </div>
+            <p class="note-graphique">
+              Barre pleine : année observée. Contour en pointillés : prévision.
+            </p>
+          </div>
 
-          <h3 class="titre-section">Indicateurs clés ({{ fiche.annee_indicateurs }})</h3>
+          <h3 class="titre-sous-section">
+            Indicateurs clés ({{ fiche.annee_indicateurs }})
+          </h3>
           <table class="tableau-indicateurs">
+            <caption class="hors-ecran">
+              Indicateurs de la région comparés à la moyenne des 13 régions
+            </caption>
             <thead>
               <tr>
                 <th scope="col">Indicateur</th>
-                <th scope="col" class="col-nombre">Garçons</th>
-                <th scope="col" class="col-nombre">Filles</th>
-                <th scope="col" class="col-nombre">Total</th>
+                <th scope="col" class="col-nombre">{{ fiche.region_nom }}</th>
+                <th scope="col" class="col-nombre">Moyenne 13 régions</th>
+                <th scope="col" class="col-nombre">Écart</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="ligne in indicateursCles" :key="ligne.code">
-                <td>{{ ligne.libelle }}</td>
-                <td class="col-nombre">{{ ligne.G }}</td>
-                <td class="col-nombre">{{ ligne.F }}</td>
-                <td class="col-nombre">{{ ligne.T }}</td>
+              <tr v-for="ind in indicateursCompares" :key="ind.code">
+                <td>{{ ind.libelle }}</td>
+                <td class="col-nombre"><strong>{{ nombreFr(ind.valeur, 1) }}</strong></td>
+                <td class="col-nombre col-moyenne">{{ nombreFr(ind.moyenne, 1) }}</td>
+                <td class="col-nombre"
+                    :class="ind.defavorable ? 'ecart-defavorable' : 'ecart-favorable'">
+                  {{ ind.ecart > 0 ? '+' : '' }}{{ nombreFr(ind.ecart, 1) }}
+                </td>
               </tr>
             </tbody>
           </table>
+          <p class="note" style="margin-top:6px">
+            L'écart compare la région à la moyenne des 13 régions pour la même année.
+          </p>
 
-          <h3 class="titre-section">Actions recommandées</h3>
+          <h3 class="titre-sous-section">Pistes d'action</h3>
           <ul class="liste-actions">
-            <li v-for="action in fiche.recommandations" :key="action">{{ action }}</li>
+            <li v-for="a in fiche.recommandations" :key="a">{{ a }}</li>
           </ul>
-
-          <template v-if="fiche.actions_par_facteur && fiche.actions_par_facteur.length">
-            <h3 class="titre-section">Pistes selon les facteurs de la région</h3>
-            <p class="aide-bloc">Pistes générales, à adapter par les services régionaux.</p>
-            <div class="bloc-facteur" v-for="bloc in fiche.actions_par_facteur"
-                 :key="bloc.facteur">
-              <h4 class="titre-facteur">{{ bloc.libelle }}</h4>
-              <ul class="liste-actions">
-                <li v-for="action in bloc.actions" :key="action">{{ action }}</li>
-              </ul>
-            </div>
+          <template v-for="bloc in fiche.actions_par_facteur" :key="bloc.libelle">
+            <p class="note" style="margin:9px 0 3px"><strong>{{ bloc.libelle }}</strong></p>
+            <ul class="liste-actions">
+              <li v-for="a in bloc.actions" :key="a">{{ a }}</li>
+            </ul>
           </template>
 
-          <a class="bouton-pdf" :href="urlFichePdf" target="_blank" rel="noopener">
-            Télécharger la fiche du directeur régional (PDF)
-          </a>
-        </template>
-        <p v-else class="etat-chargement">Chargement de la fiche…</p>
-      </div>
+          <div class="actions-fiche">
+            <a class="bouton bouton--principal"
+               :href="'../regions/' + fiche.region_code + '/fiche.pdf'">
+              Télécharger la fiche (PDF)
+            </a>
+            <button type="button" class="bouton bouton--secondaire" @click="imprimer">
+              Imprimer
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 9. Glossaire ---------------------------------------------------- -->
+    <section class="bloc glossaire">
+      <h2 class="titre-section titre-section--accent">Glossaire</h2>
+      <dl class="glossaire__liste">
+        <div>
+          <dt>Score de risque</dt>
+          <dd>Note de 0 à 100 qui résume la situation d'une région. Plus elle est
+              élevée, plus le risque de décrochage est grand. Ce n'est pas un nombre
+              d'élèves.</dd>
+        </div>
+        <div>
+          <dt>TBA — taux brut d'admission</dt>
+          <dd>Part des enfants qui entrent au CP1 par rapport au nombre d'enfants de
+              l'âge prévu.</dd>
+        </div>
+        <div>
+          <dt>TBS — taux brut de scolarisation</dt>
+          <dd>Part des enfants inscrits au primaire par rapport au nombre d'enfants
+              en âge d'y être.</dd>
+        </div>
+        <div>
+          <dt>TAP — taux d'achèvement du primaire</dt>
+          <dd>Part des enfants qui terminent le cycle primaire. Un TAP bas signale
+              que des élèves partent en cours de route.</dd>
+        </div>
+        <div>
+          <dt>CEP — certificat d'études primaires</dt>
+          <dd>Examen de fin du primaire. Son taux de réussite indique la qualité des
+              apprentissages.</dd>
+        </div>
+        <div>
+          <dt>IPS — indice de parité entre les sexes</dt>
+          <dd>Rapport entre la valeur des filles et celle des garçons. Un indice de 1
+              signifie l'égalité.</dd>
+        </div>
+        <div>
+          <dt>Recul depuis le pic</dt>
+          <dd>Ce qu'une région n'a pas encore retrouvé par rapport à son meilleur
+              niveau. Une région qui remonte un peu après avoir beaucoup perdu reste
+              en difficulté.</dd>
+        </div>
+      </dl>
     </section>
   </main>
 
+  <!-- 10. Pied de page --------------------------------------------------- -->
   <footer class="pied">
-    <p>
-      <strong>Sources</strong> : DGESS / MENAPLN, statistiques du préscolaire et du
-      primaire 2016-2025 ; OCHA / IGB (COD-AB) pour les limites administratives.
-      Année = année de fin d'année scolaire (2024/25 → 2025).
-    </p>
-    <p>
-      Équipe AB7C-938F-79BB · Data Challenge Burkina 2026, Édition Éducation ·
-      Défi 1 : risque de décrochage scolaire par région.
-    </p>
+    <div class="pied__interieur">
+      <div>
+        <h2>Sources</h2>
+        <p>Statistiques du préscolaire et du primaire 2016-2025, DGESS / MENAPLN.</p>
+        <p>Limites administratives : OCHA / IGB (COD-AB), Data Pack DCB 2026.</p>
+      </div>
+      <div>
+        <h2>Méthode</h2>
+        <p>Indice composite de déperdition scolaire à six composantes, normalisé par
+           rang sur 13 régions × 9 années.</p>
+        <p>La prévision {{ anneePrevision }} est validée dans le temps : elle se trompe
+           en moyenne d'environ 7 points sur 100.</p>
+      </div>
+      <div>
+        <h2>Nature du site</h2>
+        <p><strong>Prototype</strong> réalisé pour le Data Challenge Burkina 2026,
+           Édition Éducation, Défi 1.</p>
+        <p>Ce site n'est pas un service officiel et n'engage aucune administration.</p>
+      </div>
+      <div>
+        <h2>Équipe</h2>
+        <p>Équipe AB7C-938F-79BB.</p>
+        <p><a href="../docs">Documentation de l'API</a></p>
+      </div>
+    </div>
   </footer>
 </div>
 

@@ -28,3 +28,6 @@ Capture*.png
 
 # Dossier de preparation des depots (regenere par pipeline/preparer_depots.py)
 depots/
+
+# Bundle de deploiement Vercel, regenere par deploiement/vercel/preparer.sh
+deploiement/vercel/.build/

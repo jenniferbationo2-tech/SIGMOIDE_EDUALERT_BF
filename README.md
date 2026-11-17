@@ -18,6 +18,28 @@ docs/        documentation, dictionnaire des variables, journal de nettoyage
 - Membre 1 : data et backend (API, intégration cartographique, base de données)
 - Membre 2 : data science, analyse, frontend
 
+## Version en ligne
+
+**Application : https://edualert-bf.vercel.app/app/** — état du service :
+https://edualert-bf.vercel.app/sante — documentation de l'API :
+https://edualert-bf.vercel.app/docs
+
+La version en ligne est un service Vercel (région Paris), sans mise en veille :
+la page répond du premier coup. Elle est assemblée par
+`deploiement/vercel/preparer.sh` puis publiée par `deploiement/vercel/deployer.sh`.
+Seul le strict nécessaire est embarqué : le code de l'API, la base SQLite
+préconstruite, les trois fichiers de données lus à l'exécution et le front
+statique. Le pipeline (pandas, scikit-learn) ne tourne pas sur Vercel — il
+dépasse la taille maximale d'une fonction — la base est donc construite avant
+l'envoi.
+
+Une seconde cible reste décrite par `render.yaml`, à la racine : service web
+Python, construction par `pip install -r requirements.txt && python -m app.charger`,
+démarrage par `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. L'offre gratuite
+de Render met l'instance en veille (première ouverture lente, environ 30 s) ; elle
+n'est pas utilisée pour la version en ligne actuelle.
+
+
 ## Reproduction
 
 **Prérequis :** Python 3.11 ou plus récent.

@@ -331,8 +331,8 @@ spontanément en parlant d'insécurité : c'est précisément le genre de glisse
 carte rend visible et qu'une lecture d'annuaire laisse passer.
 
 
-Sur l'année de prévision, les contours passent en pointillés, le curseur porte une
-étiquette « prévision » et un encadré rappelle la méthode retenue et son erreur moyenne.
+Sur l'année de prévision, les contours passent en pointillés, le bouton d'année porte la
+mention « prévision » et un encadré rappelle la méthode retenue et son erreur moyenne.
 Comme expliqué en 4.2, les couleurs sont celles de 2025 : la prévision retenue est la
 persistance du score.
 
@@ -422,8 +422,15 @@ Chaque région dispose d'une fiche d'une page, générée à la demande par l'ap
 Les 13 fiches PDF sont déposées dans `data/05_interpretation/fiches/`. Elles sont
 regénérables par `python pipeline/exporter_fiches.py`, sans serveur à démarrer.
 
-L'application fonctionne aussi sur téléphone : colonne unique sous 900 px, sans
-débordement horizontal à 390 px de large.
+L'interface est conçue pour un agent peu habitué aux outils numériques : un bandeau de
+quatre chiffres clés résume l'année, un encadré « Comment lire cette page » explique la
+lecture en trois étapes, l'année se choisit par des boutons plutôt qu'un curseur, et une
+liste déroulante ouvre directement la fiche de sa région. Les noms des 13 régions sont
+écrits en permanence sur la carte. Un glossaire définit chaque sigle (TBA, TBS, TAP, CEP,
+IPS) en une phrase.
+
+Elle fonctionne aussi sur téléphone : colonne unique sous 900 px, sans débordement
+horizontal mesuré à 390 px de large.
 
 
 # 6. La réponse au défi
