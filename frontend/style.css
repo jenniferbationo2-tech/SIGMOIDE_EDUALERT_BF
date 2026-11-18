@@ -1331,3 +1331,241 @@ a { color: var(--vert-moyen); }
      score reste accessible en touchant la region (infobulle + fiche). */
   .leaflet-tooltip.etiquette-region .etiquette-region__score { display: none; }
 }
+
+/* ==========================================================================
+   12. Allègement : aide sous pastille, faits en chiffres, pied compact
+   ========================================================================== */
+
+/* --- Pastille d'aide ------------------------------------------------------ */
+
+.pastille-aide { display: inline-flex; vertical-align: middle; }
+
+.pastille-aide__bouton {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid #9AA6AF;
+  border-radius: 50%;
+  background: var(--blanc);
+  color: #4A545E;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Cible tactile de 32 px sans agrandir le dessin. */
+.pastille-aide__bouton::after { content: ''; position: absolute; inset: -6px; }
+
+.pastille-aide__bouton:hover {
+  border-color: var(--vert-moyen);
+  background: var(--vert-clair);
+  color: var(--vert-fonce);
+}
+
+.pastille-aide__panneau {
+  position: fixed;
+  z-index: 3000;
+  display: block;
+  padding: 10px 13px 11px;
+  border-radius: 6px;
+  background: #0E1B14;
+  color: var(--blanc);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.3);
+  text-align: left;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+}
+
+.pastille-aide__titre {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.pastille-aide__texte {
+  display: block;
+  font-size: 13px;
+  line-height: 1.5;
+  hyphens: auto;
+}
+
+/* Dans les titres de section, la pastille ne prend pas la casse du titre. */
+.titre-section .pastille-aide__bouton,
+.overlay__titre .pastille-aide__bouton {
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* --- Chiffres clés : valeur + libellé court + aide ------------------------ */
+
+.chiffre__ligne {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.chiffre__intitule { margin-top: 0; }
+
+/* --- Trois faits chiffrés sous la carte ----------------------------------- */
+
+.faits {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 16px;
+  background: var(--gris-ligne);
+  border: 1px solid var(--gris-ligne);
+  border-radius: var(--rayon);
+  overflow: hidden;
+}
+
+.fait {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 13px 16px;
+  background: var(--blanc);
+  min-width: 0;
+}
+
+.fait__valeur {
+  font-size: 26px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--vert-fonce);
+  white-space: nowrap;
+}
+
+.fait__libelle {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--encre);
+  min-width: 0;
+}
+
+.fait__libelle em {
+  font-style: normal;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--encre-douce);
+}
+
+.duo__ligne {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 2px 0;
+  font-size: 13px;
+  color: var(--encre-douce);
+}
+
+/* --- Pied de page compact ------------------------------------------------- */
+
+.pied { margin-top: 26px; padding: 16px 0 18px; }
+
+.pied__interieur {
+  display: block;
+  max-width: var(--colonne);
+  margin: 0 auto;
+  padding: 0 20px;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.pied p { margin: 0 0 3px; }
+.pied p:last-child { margin-bottom: 0; }
+
+.pied__liens { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+.lien-bouton {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: #FFF;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.lien-bouton:hover { color: var(--jaune-etoile); }
+
+/* --- Glossaire en panneau ------------------------------------------------- */
+
+.panneau {
+  width: min(560px, calc(100vw - 32px));
+  max-height: 80vh;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.35);
+  color: var(--encre);
+}
+
+.panneau::backdrop { background: rgba(9, 38, 26, 0.5); }
+
+.panneau__entete {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--gris-ligne);
+  background: var(--blanc);
+}
+
+.panneau__entete h2 { font-size: 17px; color: var(--vert-fonce); }
+
+.panneau__fermer {
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  color: var(--encre-douce);
+  cursor: pointer;
+}
+
+.panneau__fermer:hover { color: var(--encre); }
+
+.panneau__liste {
+  margin: 0;
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+  max-height: calc(80vh - 60px);
+}
+
+.panneau__liste dt { font-weight: 700; font-size: 13.5px; color: var(--vert-fonce); }
+.panneau__liste dd {
+  margin: 2px 0 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--encre-douce);
+}
+
+@media (max-width: 760px) {
+  .faits { grid-template-columns: 1fr; }
+  .fait { padding: 11px 14px; }
+  .fait__valeur { font-size: 23px; }
+}
+
+@media print {
+  .panneau { display: none !important; }
+}

@@ -120,6 +120,81 @@ function pointEtiquette(anneau) {
 }
 
 
+/* ==========================================================================
+   Pastille d'aide
+   --------------------------------------------------------------------------
+   Les explications ne vivent plus dans le flux : elles s'ouvrent sous une
+   pastille « ? » posee contre le libelle concerne. Une seule ouverte a la
+   fois, fermeture par Echap, clic exterieur ou defilement.
+   ========================================================================== */
+
+const etatAide = Vue.reactive({ actif: null });
+
+const PastilleAide = {
+  props: {
+    identifiant: { type: String, required: true },
+    titre: { type: String, required: true },
+    texte: { type: String, required: true },
+  },
+  data() {
+    return { ouvert: false, position: {} };
+  },
+  computed: {
+    doitFermer() { return etatAide.actif !== this.identifiant; },
+  },
+  watch: {
+    doitFermer(fermer) { if (fermer) this.ouvert = false; },
+  },
+  methods: {
+    basculer() {
+      if (this.ouvert) { this.fermer(); return; }
+      etatAide.actif = this.identifiant;
+      this.ouvert = true;
+      this.$nextTick(this.placer);
+    },
+    /** Position fixe calculee depuis le bouton, rabattue dans la fenetre. */
+    placer() {
+      const bouton = this.$el.getBoundingClientRect();
+      const largeur = Math.min(300, window.innerWidth - 24);
+      this.position = {
+        left: `${Math.max(12, Math.min(bouton.left, window.innerWidth - largeur - 12))}px`,
+        top: `${Math.min(bouton.bottom + 8, window.innerHeight - 170)}px`,
+        width: `${largeur}px`,
+      };
+    },
+    fermer() { this.ouvert = false; },
+    surEchap(evenement) { if (evenement.key === 'Escape') this.fermer(); },
+    surExterieur(evenement) {
+      if (this.ouvert && !this.$el.contains(evenement.target)) this.fermer();
+    },
+    surDefilement() { if (this.ouvert) this.fermer(); },
+  },
+  mounted() {
+    document.addEventListener('keydown', this.surEchap);
+    document.addEventListener('click', this.surExterieur, true);
+    window.addEventListener('scroll', this.surDefilement, true);
+    window.addEventListener('resize', this.surDefilement);
+  },
+  beforeUnmount() {
+    document.removeEventListener('keydown', this.surEchap);
+    document.removeEventListener('click', this.surExterieur, true);
+    window.removeEventListener('scroll', this.surDefilement, true);
+    window.removeEventListener('resize', this.surDefilement);
+  },
+  template: `
+    <span class="pastille-aide">
+      <button type="button" class="pastille-aide__bouton"
+              :aria-expanded="ouvert ? 'true' : 'false'"
+              :aria-label="'Aide : ' + titre"
+              @click.stop="basculer">?</button>
+      <span v-if="ouvert" class="pastille-aide__panneau" role="tooltip" :style="position">
+        <span class="pastille-aide__titre">{{ titre }}</span>
+        <span class="pastille-aide__texte">{{ texte }}</span>
+      </span>
+    </span>`,
+};
+
+
 // Indicateurs montres dans la fiche, avec le sens de lecture : `hautBon`
 // indique si une valeur elevee est une BONNE nouvelle. Sans cette precision,
 // la colonne « ecart » colorerait en vert un retard et en rouge une avance.
@@ -133,7 +208,7 @@ const INDICATEURS_FICHE = [
   { code: 'ips_tap',                 libelle: "Indice de parité (achèvement)", hautBon: true },
 ];
 
-createApp({
+const application = createApp({
   data() {
     return {
       annees: [],
@@ -150,7 +225,6 @@ createApp({
       // bandeau de chiffres cles et aux moyennes de comparaison.
       indicateurs: [],
       anneeIndicateurs: null,
-      aideOuverte: true,       // ouverte a la premiere visite (cf. monte())
       chargement: true,
       erreur: '',
       // Vue affichee : la carte du pays ou le classement. Chacune occupe sa
@@ -213,27 +287,10 @@ createApp({
       return compte;
     },
 
-    /**
-     * Phrase de lecture de la carte, construite a partir des donnees : combien
-     * de regions sont critiques, laquelle est la plus exposee, laquelle est la
-     * mieux placee. Aucune valeur ecrite a la main.
-     */
-    phraseCarte() {
-      if (!this.classement.length) return '';
-      const premier = this.classement[0];
-      const dernier = this.classement[this.classement.length - 1];
-      const quand = this.estPrevision
-        ? `En ${this.annee} (prévision)`
-        : `En ${this.annee}`;
-      const critiques = this.nbCritiques;
-      const debut = critiques === 0
-        ? `${quand}, aucune région n'est en risque critique.`
-        : critiques === 1
-          ? `${quand}, une région sur 13 est en risque critique.`
-          : `${quand}, ${critiques} régions sur 13 sont en risque critique.`;
-      return `${debut} La plus exposée est ${premier.region_nom} `
-        + `(${this.nombreFr(premier.score, 1)}/100), la mieux placée `
-        + `${dernier.region_nom} (${this.nombreFr(dernier.score, 1)}/100).`;
+    /** Écart de score entre la région la plus et la moins exposée. */
+    ecartExtremes() {
+      if (this.classement.length < 2) return 0;
+      return this.classement[0].score - this.classement[this.classement.length - 1].score;
     },
 
     /**
@@ -459,12 +516,17 @@ createApp({
       return valeurs.reduce((a, b) => a + b, 0) / valeurs.length;
     },
 
-    basculerAide() {
-      this.aideOuverte = !this.aideOuverte;
-      try { localStorage.setItem('edualert-aide-vue', '1'); } catch (e) { /* navigation privee */ }
+    imprimer() { window.print(); },
+
+    ouvrirGlossaire() {
+      const panneau = this.$refs.glossaire;
+      if (panneau && !panneau.open) panneau.showModal();
     },
 
-    imprimer() { window.print(); },
+    fermerGlossaire() {
+      const panneau = this.$refs.glossaire;
+      if (panneau && panneau.open) panneau.close();
+    },
 
     async json(chemin) {
       const reponse = await fetch(chemin);
@@ -668,11 +730,6 @@ createApp({
 
     async monte() {
       try {
-        // L'encadre d'aide est ouvert a la PREMIERE visite seulement.
-        try {
-          if (localStorage.getItem('edualert-aide-vue')) this.aideOuverte = false;
-        } catch (e) { /* navigation privee : on laisse ouvert */ }
-
         const [sante, annees, geojson] = await Promise.all([
           this.json('../sante'),
           this.json('../annees'),
@@ -726,4 +783,6 @@ createApp({
   },
 
   mounted() { this.monte(); },
-}).mount('#application');
+});
+application.component('pastille-aide', PastilleAide);
+application.mount('#application');

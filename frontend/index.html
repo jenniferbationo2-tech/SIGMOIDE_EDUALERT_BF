@@ -51,32 +51,35 @@
           <div class="chiffre__valeur chiffre__valeur--critique">
             {{ nbCritiques }}<span class="chiffre__unite"> / 13</span>
           </div>
-          <div class="chiffre__intitule">Régions en risque critique</div>
-          <p class="chiffre__explication">Score de 66 ou plus sur 100 en {{ annee }}.</p>
+          <div class="chiffre__ligne">
+            <span class="chiffre__intitule">Régions critiques</span>
+            <pastille-aide identifiant="kpi-critiques" titre="Régions critiques"
+                           texte="Score de 66 ou plus sur 100. Les 13 régions du pays sont classées chaque année."></pastille-aide>
+          </div>
         </div>
         <div class="chiffre">
           <div class="chiffre__valeur">{{ nombreFr(elevesEnMoins, 0) }}</div>
-          <div class="chiffre__intitule">Élèves du primaire en moins</div>
-          <p class="chiffre__explication">
-            Écart entre les effectifs de {{ anneeIndicateurs }} et le meilleur niveau
-            atteint par chaque région.
-          </p>
+          <div class="chiffre__ligne">
+            <span class="chiffre__intitule">Élèves en moins</span>
+            <pastille-aide identifiant="kpi-eleves" titre="Élèves en moins"
+                           texte="Écart entre les effectifs de l'année et le meilleur niveau atteint par chaque région, additionné sur les 13 régions."></pastille-aide>
+          </div>
         </div>
         <div class="chiffre">
           <div class="chiffre__valeur">{{ nombreFr(ecolesEnMoins, 0) }}</div>
-          <div class="chiffre__intitule">Écoles en moins</div>
-          <p class="chiffre__explication">
-            Même calcul sur le nombre d'écoles : mesure la rupture de l'offre scolaire.
-          </p>
+          <div class="chiffre__ligne">
+            <span class="chiffre__intitule">Écoles en moins</span>
+            <pastille-aide identifiant="kpi-ecoles" titre="Écoles en moins"
+                           texte="Même calcul sur le nombre d'écoles : il mesure la rupture de l'offre scolaire."></pastille-aide>
+          </div>
         </div>
         <div class="chiffre">
           <div class="chiffre__valeur">{{ nbChangements }}</div>
-          <div class="chiffre__intitule">Régions qui changent de niveau</div>
-          <p class="chiffre__explication">
-            {{ annee > premiereAnnee
-               ? 'Par rapport à ' + (annee - 1) + ' : passage d\'un niveau à un autre.'
-               : 'Première année disponible : aucune comparaison possible.' }}
-          </p>
+          <div class="chiffre__ligne">
+            <span class="chiffre__intitule">Changements de niveau</span>
+            <pastille-aide identifiant="kpi-niveaux" titre="Changements de niveau"
+                           texte="Nombre de régions passées d'un niveau de risque à un autre par rapport à l'année précédente."></pastille-aide>
+          </div>
         </div>
       </div>
     </section>
@@ -85,7 +88,11 @@
     <section class="bloc bloc--barre" aria-labelledby="titre-annee">
       <div class="barre-outils">
         <div>
-          <h2 class="titre-section titre-section--accent" id="titre-annee">Année affichée</h2>
+          <h2 class="titre-section titre-section--accent" id="titre-annee">
+            Année affichée
+            <pastille-aide identifiant="annee" titre="Année affichée"
+                           texte="2026 est une prévision du modèle, pas une observation. Les années 2017 à 2025 viennent des statistiques DGESS / MENAPLN."></pastille-aide>
+          </h2>
           <div class="annees" role="group" aria-labelledby="titre-annee">
             <button v-for="a in annees" :key="a"
                     type="button"
@@ -158,7 +165,11 @@
                aria-label="Carte des 13 régions du Burkina Faso colorées selon le niveau de risque ; le score de chaque région est écrit sur la carte"></div>
 
           <div class="overlay overlay--legende" role="group" aria-label="Légende du niveau de risque">
-            <p class="overlay__titre">Niveau de risque</p>
+            <p class="overlay__titre">
+              Niveau de risque
+              <pastille-aide identifiant="legende" titre="Lire les couleurs"
+                             texte="Vert : risque faible, moins de 33. Orange : risque modéré, de 33 à 66. Rouge : risque critique, 66 et plus. L'indice va de 0 à 100 ; ce n'est pas un taux d'abandon mesuré."></pastille-aide>
+            </p>
             <ul class="echelle">
               <li v-for="n in ordreNiveaux" :key="n" class="echelle__ligne">
                 <span class="echelle__pastille" :style="{ background: couleurNiveau(n) }"></span>
@@ -181,16 +192,27 @@
         </p>
       </div>
 
-      <div class="duo">
-        <div class="bloc">
-          <h3 class="duo__titre">Ce que montre la carte</h3>
-          <p class="duo__texte">{{ phraseCarte }}</p>
+      <div class="faits" v-if="classement.length">
+        <div class="fait">
+          <span class="fait__valeur">{{ nombreFr(classement[0].score, 1) }}</span>
+          <span class="fait__libelle">{{ classement[0].region_nom }}<em>la plus exposée</em></span>
         </div>
-        <div class="bloc" v-if="modele.modele_retenu">
-          <h3 class="duo__titre">Fiabilité de la prévision</h3>
-          <p class="duo__texte">{{ phraseFiabilite }}</p>
+        <div class="fait">
+          <span class="fait__valeur">{{ nombreFr(classement[classement.length - 1].score, 1) }}</span>
+          <span class="fait__libelle">{{ classement[classement.length - 1].region_nom }}<em>la mieux placée</em></span>
+        </div>
+        <div class="fait">
+          <span class="fait__valeur">{{ nombreFr(ecartExtremes, 0) }}</span>
+          <span class="fait__libelle">points d'écart<em>entre les deux extrêmes</em></span>
         </div>
       </div>
+
+      <p class="duo__ligne" v-if="modele.modele_retenu">
+        Prévision {{ anneePrevision }} : se trompe en moyenne de
+        {{ nombreFr(modele.mae_moyenne_glissante, 1) }} points sur 100.
+        <pastille-aide identifiant="fiabilite" titre="Fiabilité de la prévision"
+                       :texte="phraseFiabilite"></pastille-aide>
+      </p>
     </section>
 
     <!-- 6. Vue CLASSEMENT ----------------------------------------------- -->
@@ -391,109 +413,69 @@
       </div>
     </section>
 
-    <!-- 8. Comment lire cette page ------------------------------------- -->
-    <section class="aide">
-      <h2 class="hors-ecran">Comment lire cette page</h2>
-      <button type="button" class="aide__bouton"
-              :aria-expanded="aideOuverte ? 'true' : 'false'"
-              aria-controls="aide-contenu"
-              @click="basculerAide">
-        <span aria-hidden="true">?</span>
-        Comment lire cette page
-        <span class="aide__chevron" aria-hidden="true">{{ aideOuverte ? '▲' : '▼' }}</span>
-      </button>
-      <div id="aide-contenu" class="aide__contenu" v-show="aideOuverte">
-        <ol class="etapes">
-          <li class="etape">
-            <div class="etape__titre">Choisir une année</div>
-            <p>Les boutons ci-dessus changent l'année affichée. La dernière,
-               « 2026 », est une prévision : elle n'est pas encore observée.</p>
-          </li>
-          <li class="etape">
-            <div class="etape__titre">Lire les couleurs</div>
-            <p>Vert : risque faible. Orange : risque modéré. Rouge : risque critique,
-               la région demande une attention immédiate.</p>
-          </li>
-          <li class="etape">
-            <div class="etape__titre">Ouvrir sa région</div>
-            <p>Cliquez sur la carte, sur une ligne du classement, ou choisissez votre
-               région dans la liste. Vous obtenez une fiche à imprimer.</p>
-          </li>
-        </ol>
-      </div>
-    </section>
-
-    <!-- 9. Glossaire ---------------------------------------------------- -->
-    <section class="bloc glossaire">
-      <h2 class="titre-section titre-section--accent">Glossaire</h2>
-      <dl class="glossaire__liste">
-        <div>
-          <dt>Score de risque</dt>
-          <dd>Note de 0 à 100 qui résume la situation d'une région. Plus elle est
-              élevée, plus le risque de décrochage est grand. Ce n'est pas un nombre
-              d'élèves.</dd>
-        </div>
-        <div>
-          <dt>TBA — taux brut d'admission</dt>
-          <dd>Part des enfants qui entrent au CP1 par rapport au nombre d'enfants de
-              l'âge prévu.</dd>
-        </div>
-        <div>
-          <dt>TBS — taux brut de scolarisation</dt>
-          <dd>Part des enfants inscrits au primaire par rapport au nombre d'enfants
-              en âge d'y être.</dd>
-        </div>
-        <div>
-          <dt>TAP — taux d'achèvement du primaire</dt>
-          <dd>Part des enfants qui terminent le cycle primaire. Un TAP bas signale
-              que des élèves partent en cours de route.</dd>
-        </div>
-        <div>
-          <dt>CEP — certificat d'études primaires</dt>
-          <dd>Examen de fin du primaire. Son taux de réussite indique la qualité des
-              apprentissages.</dd>
-        </div>
-        <div>
-          <dt>IPS — indice de parité entre les sexes</dt>
-          <dd>Rapport entre la valeur des filles et celle des garçons. Un indice de 1
-              signifie l'égalité.</dd>
-        </div>
-        <div>
-          <dt>Recul depuis le pic</dt>
-          <dd>Ce qu'une région n'a pas encore retrouvé par rapport à son meilleur
-              niveau. Une région qui remonte un peu après avoir beaucoup perdu reste
-              en difficulté.</dd>
-        </div>
-      </dl>
-    </section>
   </main>
+
+  <!-- 9. Glossaire, en panneau -------------------------------------------- -->
+  <dialog ref="glossaire" class="panneau" aria-labelledby="titre-glossaire">
+    <div class="panneau__entete">
+      <h2 id="titre-glossaire">Glossaire</h2>
+      <button type="button" class="panneau__fermer" @click="fermerGlossaire"
+              aria-label="Fermer le glossaire">✕</button>
+    </div>
+    <dl class="panneau__liste">
+      <div>
+        <dt>Score de risque</dt>
+        <dd>Note de 0 à 100 qui résume la situation d'une région. Plus elle est
+            élevée, plus le risque de décrochage est grand. Ce n'est pas un nombre
+            d'élèves.</dd>
+      </div>
+      <div>
+        <dt>TBA — taux brut d'admission</dt>
+        <dd>Part des enfants qui entrent au CP1 par rapport au nombre d'enfants de
+            l'âge prévu.</dd>
+      </div>
+      <div>
+        <dt>TBS — taux brut de scolarisation</dt>
+        <dd>Part des enfants inscrits au primaire par rapport au nombre d'enfants
+            en âge d'y être.</dd>
+      </div>
+      <div>
+        <dt>TAP — taux d'achèvement du primaire</dt>
+        <dd>Part des enfants qui terminent le cycle primaire. Un TAP bas signale
+            que des élèves partent en cours de route.</dd>
+      </div>
+      <div>
+        <dt>CEP — certificat d'études primaires</dt>
+        <dd>Examen de fin du primaire. Son taux de réussite indique la qualité des
+            apprentissages.</dd>
+      </div>
+      <div>
+        <dt>IPS — indice de parité entre les sexes</dt>
+        <dd>Rapport entre la valeur des filles et celle des garçons. Un indice de 1
+            signifie l'égalité.</dd>
+      </div>
+      <div>
+        <dt>Recul depuis le pic</dt>
+        <dd>Ce qu'une région n'a pas encore retrouvé par rapport à son meilleur
+            niveau. Une région qui remonte un peu après avoir beaucoup perdu reste
+            en difficulté.</dd>
+      </div>
+    </dl>
+  </dialog>
 
   <!-- 10. Pied de page --------------------------------------------------- -->
   <footer class="pied">
     <div class="pied__interieur">
-      <div>
-        <h2>Sources</h2>
-        <p>Statistiques du préscolaire et du primaire 2016-2025, DGESS / MENAPLN.</p>
-        <p>Limites administratives : OCHA / IGB (COD-AB), Data Pack DCB 2026.</p>
-      </div>
-      <div>
-        <h2>Méthode</h2>
-        <p>Indice composite de déperdition scolaire à six composantes, normalisé par
-           rang sur 13 régions × 9 années.</p>
-        <p>La prévision {{ anneePrevision }} est validée dans le temps : elle se trompe
-           en moyenne d'environ 7 points sur 100.</p>
-      </div>
-      <div>
-        <h2>Nature du site</h2>
-        <p><strong>Prototype</strong> réalisé pour le Data Challenge Burkina 2026,
-           Édition Éducation, Défi 1.</p>
-        <p>Ce site n'est pas un service officiel et n'engage aucune administration.</p>
-      </div>
-      <div>
-        <h2>Équipe</h2>
-        <p>Équipe AB7C-938F-79BB.</p>
-        <p><a href="../docs">Documentation de l'API</a></p>
-      </div>
+      <p><strong>Sources</strong> · DGESS / MENAPLN, 2016-2025 · contours OCHA / IGB (COD-AB)</p>
+      <p><strong>Prototype</strong> · Data Challenge Burkina 2026, Défi 1. Site non
+         officiel, n'engage aucune administration.</p>
+      <p class="pied__liens">
+        Équipe AB7C-938F-79BB
+        <span aria-hidden="true">·</span>
+        <button type="button" class="lien-bouton" @click="ouvrirGlossaire">Glossaire</button>
+        <span aria-hidden="true">·</span>
+        <a href="../docs">Documentation de l'API</a>
+      </p>
     </div>
   </footer>
 </div>
