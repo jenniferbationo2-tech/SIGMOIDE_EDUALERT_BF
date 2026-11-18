@@ -102,6 +102,17 @@ def risque(annee: int = Query(..., description="Ex. 2025, ou 2026 pour la previs
     return res
 
 
+@app.get("/risque/historique", tags=["Carte"])
+def risque_historique():
+    """Score de chaque region pour toutes les annees disponibles.
+
+    Alimente les mini-courbes du classement : une seule requete, au lieu
+    d'un appel par region.
+    """
+    return lignes("""SELECT r.region_code, r.annee, r.score, r.niveau, r.est_prevision
+                      FROM risque r ORDER BY r.region_code, r.annee""")
+
+
 RECOMMANDATIONS = {
     "Critique": ["Renforcer les cantines scolaires et kits scolaires",
                  "Suivi rapproché des écoles fermées ou délocalisées (zones à fort déplacement)",

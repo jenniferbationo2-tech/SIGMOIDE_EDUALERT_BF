@@ -28,20 +28,218 @@ const LIBELLES_FACTEURS = {
   aucun_facteur_marquant: 'Aucun facteur marquant',
 };
 
+// libelle court + pictogramme : dans le classement, la cause tient dans une
+// puce au lieu d'une phrase.
+const FACTEURS_COURTS = {
+  ecart_admission_achevement: { libelle: 'Décrochage en cycle', icone: 'tendance' },
+  faible_achevement: { libelle: 'Achèvement faible', icone: 'tendance' },
+  recul_effectifs: { libelle: 'Effectifs en recul', icone: 'personnes' },
+  fermeture_ecoles: { libelle: 'Écoles fermées', icone: 'ecole' },
+  faible_scolarisation: { libelle: 'Peu scolarisés', icone: 'personnes' },
+  disparite_filles_garcons: { libelle: 'Écart filles-garçons', icone: 'parite' },
+  aucun_facteur_marquant: { libelle: 'Aucun facteur', icone: 'neutre' },
+};
+
+const ICONES_FACTEURS = {
+  ecole: 'M2 6.6 8 3l6 3.6V13H2V6.6zm3 1.6v3.2h2V8.2H5zm4 0v3.2h2V8.2H9z',
+  personnes: 'M6 7.4a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4zM1.8 13.2c0-2.1 1.9-3.4 4.2-3.4s4.2 1.3 4.2 3.4H1.8zm8.6-6.3a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6zM11 13.2c0-1.5.5-2.6 1.4-3.1 1.7.3 2.8 1.4 2.8 3.1H11z',
+  tendance: 'M1.4 12.1 6.2 7.3l2.3 2.3 5-5 1 1-6 6-2.3-2.3-3.8 3.8-1-1z',
+  parite: 'M7.4 2h1.2v12H7.4V2zM4.6 6.6 2 11.4h5.2L4.6 6.6zm6.8 0-2.6 4.8H14l-2.6-4.8z',
+  neutre: 'M8 3.2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6zm0 1.4a3.4 3.4 0 1 1 0 6.8 3.4 3.4 0 0 1 0-6.8z',
+};
+
+
+/* ==========================================================================
+   Placement des etiquettes de region
+   --------------------------------------------------------------------------
+   Le centre geometrique d'un polygone tombe souvent sur un bord ou hors du
+   trace (forme concave, region en croissant). On cherche donc le point le
+   plus eloigne des bords — « pole of inaccessibility », approche polylabel —
+   par une grille grossiere puis un raffinement local. Le resultat tient dans
+   le polygone, au plus large, sans dependance externe.
+   ========================================================================== */
+
+/** Aire signee positive d'un anneau [lon, lat]. */
+function aireAnneau(anneau) {
+  let somme = 0;
+  for (let i = 0, j = anneau.length - 1; i < anneau.length; j = i++) {
+    somme += (anneau[j][0] * anneau[i][1]) - (anneau[i][0] * anneau[j][1]);
+  }
+  return Math.abs(somme / 2);
+}
+
+function pointDansAnneau(x, y, anneau) {
+  let dedans = false;
+  for (let i = 0, j = anneau.length - 1; i < anneau.length; j = i++) {
+    const [xi, yi] = anneau[i];
+    const [xj, yj] = anneau[j];
+    const croise = ((yi > y) !== (yj > y))
+      && (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+    if (croise) dedans = !dedans;
+  }
+  return dedans;
+}
+
+function distanceSegment(px, py, a, b) {
+  const [ax, ay] = a;
+  const [bx, by] = b;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const long2 = (dx * dx) + (dy * dy);
+  const t = long2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / long2)) : 0;
+  return Math.hypot(px - (ax + (t * dx)), py - (ay + (t * dy)));
+}
+
+/** Point interieur le plus eloigne des bords, en [lon, lat]. */
+function pointEtiquette(anneau) {
+  let minX = Infinity; let minY = Infinity;
+  let maxX = -Infinity; let maxY = -Infinity;
+  anneau.forEach(([x, y]) => {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  });
+
+  if (!Number.isFinite(minX) || !Number.isFinite(minY) || maxX <= minX || maxY <= minY) {
+    return [Number.isFinite(minX) ? (minX + maxX) / 2 : 0,
+            Number.isFinite(minY) ? (minY + maxY) / 2 : 0];
+  }
+
+  const distanceAuBord = (x, y) => {
+    let d = Infinity;
+    for (let i = 0, j = anneau.length - 1; i < anneau.length; j = i++) {
+      d = Math.min(d, distanceSegment(x, y, anneau[j], anneau[i]));
+    }
+    return d;
+  };
+
+  const essais = 16;
+  let x = (minX + maxX) / 2;
+  let y = (minY + maxY) / 2;
+  let d = -1;
+
+  for (let ix = 0; ix <= essais; ix += 1) {
+    for (let iy = 0; iy <= essais; iy += 1) {
+      const cx = minX + ((maxX - minX) * ix) / essais;
+      const cy = minY + ((maxY - minY) * iy) / essais;
+      if (!pointDansAnneau(cx, cy, anneau)) continue;
+      const cd = distanceAuBord(cx, cy);
+      if (cd > d) { x = cx; y = cy; d = cd; }
+    }
+  }
+
+  let pas = Math.max((maxX - minX) / essais, (maxY - minY) / essais) / 2;
+  const directions = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [-1, 1], [1, -1]];
+  // Borne dure : sans elle, sur un polygone tres plat, le point peut osciller
+  // indefiniment autour du maximum et bloquer le navigateur (bug constate).
+  for (let iteration = 0; iteration < 40 && pas > 0.001; iteration += 1) {
+    let ameliore = false;
+    for (const [dx, dy] of directions) {
+      const nx = x + (dx * pas);
+      const ny = y + (dy * pas);
+      if (!pointDansAnneau(nx, ny, anneau)) continue;
+      const nd = distanceAuBord(nx, ny);
+      if (nd > d) { x = nx; y = ny; d = nd; ameliore = true; }
+    }
+    if (!ameliore) pas /= 2;
+  }
+  return [Number.isFinite(x) && Number.isFinite(y) ? x : (minX + maxX) / 2,
+          Number.isFinite(y) ? y : (minY + maxY) / 2];
+}
+
+
+/* ==========================================================================
+   Pastille d'aide
+   --------------------------------------------------------------------------
+   Les explications ne vivent plus dans le flux : elles s'ouvrent sous une
+   pastille « ? » posee contre le libelle concerne. Une seule ouverte a la
+   fois, fermeture par Echap, clic exterieur ou defilement.
+   ========================================================================== */
+
+const etatAide = Vue.reactive({ actif: null });
+
+const PastilleAide = {
+  props: {
+    identifiant: { type: String, required: true },
+    titre: { type: String, required: true },
+    texte: { type: String, required: true },
+  },
+  data() {
+    return { ouvert: false, position: {} };
+  },
+  computed: {
+    doitFermer() { return etatAide.actif !== this.identifiant; },
+  },
+  watch: {
+    doitFermer(fermer) { if (fermer) this.ouvert = false; },
+  },
+  methods: {
+    basculer() {
+      if (this.ouvert) { this.fermer(); return; }
+      etatAide.actif = this.identifiant;
+      this.ouvert = true;
+      this.$nextTick(this.placer);
+    },
+    /** Position fixe calculee depuis le bouton, rabattue dans la fenetre. */
+    placer() {
+      const bouton = this.$el.getBoundingClientRect();
+      const largeur = Math.min(300, window.innerWidth - 24);
+      this.position = {
+        left: `${Math.max(12, Math.min(bouton.left, window.innerWidth - largeur - 12))}px`,
+        top: `${Math.min(bouton.bottom + 8, window.innerHeight - 170)}px`,
+        width: `${largeur}px`,
+      };
+    },
+    fermer() { this.ouvert = false; },
+    surEchap(evenement) { if (evenement.key === 'Escape') this.fermer(); },
+    surExterieur(evenement) {
+      if (this.ouvert && !this.$el.contains(evenement.target)) this.fermer();
+    },
+    surDefilement() { if (this.ouvert) this.fermer(); },
+  },
+  mounted() {
+    document.addEventListener('keydown', this.surEchap);
+    document.addEventListener('click', this.surExterieur, true);
+    window.addEventListener('scroll', this.surDefilement, true);
+    window.addEventListener('resize', this.surDefilement);
+  },
+  beforeUnmount() {
+    document.removeEventListener('keydown', this.surEchap);
+    document.removeEventListener('click', this.surExterieur, true);
+    window.removeEventListener('scroll', this.surDefilement, true);
+    window.removeEventListener('resize', this.surDefilement);
+  },
+  template: `
+    <span class="pastille-aide">
+      <button type="button" class="pastille-aide__bouton"
+              :aria-expanded="ouvert ? 'true' : 'false'"
+              :aria-label="'Aide : ' + titre"
+              @click.stop="basculer">?</button>
+      <span v-if="ouvert" class="pastille-aide__panneau" role="tooltip" :style="position">
+        <span class="pastille-aide__titre">{{ titre }}</span>
+        <span class="pastille-aide__texte">{{ texte }}</span>
+      </span>
+    </span>`,
+};
+
+
 // Indicateurs montres dans la fiche, avec le sens de lecture : `hautBon`
 // indique si une valeur elevee est une BONNE nouvelle. Sans cette precision,
 // la colonne « ecart » colorerait en vert un retard et en rouge une avance.
 const INDICATEURS_FICHE = [
-  { code: 'taux_achevement',         libelle: "Taux d'achèvement (%)",        hautBon: true },
-  { code: 'taux_brut_admission',     libelle: "Taux brut d'admission (%)",    hautBon: true },
-  { code: 'taux_brut_scolarisation', libelle: 'Taux brut de scolarisation (%)', hautBon: true },
-  { code: 'taux_reussite_cep',       libelle: 'Taux de réussite au CEP (%)',  hautBon: true },
-  { code: 'ecart_tba_tap',           libelle: 'Écart admission − achèvement', hautBon: false },
-  { code: 'eleves_par_ecole',        libelle: 'Élèves par école',             hautBon: false },
-  { code: 'ips_tap',                 libelle: "Indice de parité (achèvement)", hautBon: true },
+  { code: 'taux_achevement',         libelle: "Taux d'achèvement",        hautBon: true,  echelle: 100 },
+  { code: 'taux_brut_admission',     libelle: "Taux brut d'admission",    hautBon: true,  echelle: 100 },
+  { code: 'taux_brut_scolarisation', libelle: 'Taux brut de scolarisation', hautBon: true, echelle: 100 },
+  { code: 'taux_reussite_cep',       libelle: 'Taux de réussite au CEP',  hautBon: true,  echelle: 100 },
+  { code: 'ecart_tba_tap',           libelle: 'Écart admission − achèvement', hautBon: false, echelle: 100 },
+  // Ceux-ci n'ont pas de plafond naturel : l'echelle est relative a la plus
+  // grande des deux valeurs (region ou moyenne).
+  { code: 'eleves_par_ecole',        libelle: 'Élèves par école',         hautBon: false },
+  { code: 'ips_tap',                 libelle: 'Indice de parité',         hautBon: true,  echelle: 2 },
 ];
 
-createApp({
+const application = createApp({
   data() {
     return {
       annees: [],
@@ -50,6 +248,8 @@ createApp({
       premiereAnnee: null,
       classement: [],
       classementPrecedent: [],
+      // Scores de toutes les regions et toutes les annees (mini-courbes).
+      historique: [],
       fiche: null,
       sante: {},
       modele: {},
@@ -58,9 +258,39 @@ createApp({
       // bandeau de chiffres cles et aux moyennes de comparaison.
       indicateurs: [],
       anneeIndicateurs: null,
-      aideOuverte: true,       // ouverte a la premiere visite (cf. monte())
       chargement: true,
       erreur: '',
+      // Vue affichee : la carte du pays ou le classement. Chacune occupe sa
+      // propre page ; la fiche region s'ouvre par-dessus et revient a la vue
+      // d'ou l'on vient.
+      onglet: 'carte',
+      ongletPrecedent: 'carte',
+      ordreNiveaux: ['critique', 'modere', 'faible'],
+      // Types proposes : les quatre premiers dessinent le meme jeu de points,
+      // le tableau donne les valeurs brutes.
+      typesGraphique: [
+        { code: 'barres', libelle: 'Barres' },
+        { code: 'courbe', libelle: 'Courbe' },
+        { code: 'aire', libelle: 'Aire' },
+        { code: 'points', libelle: 'Points' },
+        { code: 'tableau', libelle: 'Tableau' },
+      ],
+      typeGraphique: 'barres',
+      survol: null,
+      pleinEcran: false,
+      partageGraphiqueOuvert: false,
+      lienGraphiqueCopie: false,
+      // Fiche region : une page a la fois, choisie dans le rail.
+      pageFiche: 0,
+      pagesFiche: [
+        { code: 'situation', titre: 'Situation' },
+        { code: 'causes', titre: 'Causes' },
+        { code: 'evolution', titre: 'Évolution' },
+        { code: 'indicateurs', titre: 'Indicateurs' },
+        { code: 'actions', titre: 'Actions' },
+      ],
+      partageOuvert: false,
+      lienCopie: false,
       carte: null,
       coucheRegions: null,
       etiquettes: [],
@@ -106,6 +336,223 @@ createApp({
       if (!this.fiche || !this.fiche.risque_actuel) return null;
       if (!this.fiche.risque_actuel.est_prevision) return null;
       return this.incertitudes[this.fiche.region_code] || null;
+    },
+
+    /** Nombre de regions par niveau : alimente la legende et les onglets. */
+    repartition() {
+      const compte = { faible: 0, modere: 0, critique: 0 };
+      this.classement.forEach((r) => { compte[this.classeNiveau(r.niveau)] += 1; });
+      return compte;
+    },
+
+    /** Toutes les annees d'une region, dans l'ordre. */
+    seriesParRegion() {
+      const par = {};
+      this.historique.forEach((h) => {
+        (par[h.region_code] = par[h.region_code] || []).push(h);
+      });
+      return par;
+    },
+
+    /** Causes de la fiche, en puces courtes avec pictogramme. */
+    causesCourtes() {
+      const actuel = this.fiche && this.fiche.risque_actuel;
+      return this.facteursCourts(actuel ? actuel.facteurs : '');
+    },
+
+    /** Causes detaillees : titre court + une phrase d'explication. */
+    causesDetail() {
+      return this.causesCourtes.map((c) => ({
+        ...c,
+        explication: this.libelleFacteur(c.code),
+      }));
+    },
+
+    /** Rang de la region dans le classement de l'annee (1 = le plus expose). */
+    rangFiche() {
+      if (!this.fiche) return null;
+      const rang = this.classement.findIndex((r) => r.region_code === this.fiche.region_code);
+      return rang >= 0 ? rang + 1 : null;
+    },
+
+    /** Ecart du score a la moyenne des 13 regions. */
+    ecartMoyenne() {
+      if (!this.classement.length || !this.fiche) return 0;
+      const moyenne = this.classement.reduce((somme, r) => somme + r.score, 0) / this.classement.length;
+      return this.ficheScore - moyenne;
+    },
+
+    ecartMoyenneSigne() {
+      const ecart = this.ecartMoyenne;
+      const valeur = this.nombreFr(Math.abs(ecart), 1);
+      if (Math.abs(ecart) < 0.1) return '0,0';
+      return `${ecart > 0 ? '+' : '−'}${valeur}`;
+    },
+
+    nbIndicateursDefavorables() {
+      return this.indicateursCompares.filter((ind) => ind.defavorable).length;
+    },
+
+    /** Le classement, enrichi de la mini-courbe de chaque region. */
+    classementCourbes() {
+      return this.classement.map((ligne) => ({
+        ...ligne,
+        courbe: this.miniCourbe(ligne.region_code),
+      }));
+    },
+
+    /** Pistes d'action a plat : une action par carte numerotee. */
+    actionsCartes() {
+      if (!this.fiche) return [];
+      const cartes = [];
+      (this.fiche.recommandations || []).forEach((texte) => {
+        cartes.push({ titre: 'Priorité régionale', texte });
+      });
+      (this.fiche.actions_par_facteur || []).forEach((bloc) => {
+        bloc.actions.forEach((texte) => cartes.push({ titre: bloc.libelle, texte }));
+      });
+      return cartes.map((carte, i) => ({ ...carte, num: i + 1 }));
+    },
+
+    /**
+     * Géométrie du graphique d'évolution, en coordonnées SVG 600 x 220.
+     * Une seule géométrie sert aux quatre types : barres, courbe, aire et
+     * points se dessinent avec les mêmes points, donc le survol et l'export
+     * restent identiques quel que soit le choix.
+     */
+    courbeFiche() {
+      const serie = (this.fiche && this.fiche.historique_risque) || [];
+      if (!serie.length) return null;
+
+      const zone = { x: 34, y: 12, largeur: 600 - 34 - 16, hauteur: 220 - 12 - 44 };
+      const bas = zone.y + zone.hauteur;
+      const pas = zone.largeur / Math.max(1, serie.length - 1);
+      const largeurBarre = Math.min(30, pas * 0.55);
+
+      const points = serie.map((h, i) => {
+        const x = zone.x + pas * i;
+        const y = bas - (Math.max(0, Math.min(100, h.score)) / 100) * zone.hauteur;
+        const demi = pas / 2;
+        return {
+          x: +x.toFixed(1),
+          y: +y.toFixed(1),
+          barreX: +(x - largeurBarre / 2).toFixed(1),
+          zoneX: +(i === 0 ? zone.x : x - demi).toFixed(1),
+          zoneLargeur: +(i === 0 || i === serie.length - 1 ? demi : pas).toFixed(1),
+          annee: h.annee,
+          score: h.score,
+          niveau: h.niveau,
+          prevision: Boolean(h.est_prevision),
+        };
+      });
+
+      const aire = `M${points[0].x},${bas} `
+        + points.map((p) => `L${p.x},${p.y}`).join(' ')
+        + ` L${points[points.length - 1].x},${bas} Z`;
+
+      // La ligne pleine s'arrete avant la prevision : le dernier segment est
+      // dessine en pointilles par-dessus, sans trait plein en dessous.
+      const observee = points[points.length - 1].prevision ? points.slice(0, -1) : points;
+
+      return {
+        points,
+        trace: points.map((p) => `${p.x},${p.y}`).join(' '),
+        traceObservee: observee.map((p) => `${p.x},${p.y}`).join(' '),
+        aire,
+        dernier: points[points.length - 1],
+        avantDernier: points.length > 1 ? points[points.length - 2] : null,
+        zone,
+        bas,
+        pas,
+        largeurBarre,
+        grille: [0, 25, 50, 75, 100].map((v) => ({
+          v,
+          y: bas - (v / 100) * zone.hauteur,
+        })),
+      };
+    },
+
+    phraseGraphique() {
+      if (!this.fiche || !this.courbeFiche) return '';
+      const premier = this.courbeFiche.points[0];
+      const dernier = this.courbeFiche.dernier;
+      return `${this.fiche.region_nom} · score de ${this.nombreFr(premier.score, 1)} en ${premier.annee} `
+        + `à ${this.nombreFr(dernier.score, 1)} en ${dernier.annee}`
+        + `${dernier.prevision ? ' (prévision)' : ''}. Source : DGESS / MENAPLN.`;
+    },
+
+    ariaGraphique() {
+      if (!this.fiche || !this.courbeFiche) return '';
+      const { premier, dernier } = { premier: this.courbeFiche.points[0], dernier: this.courbeFiche.dernier };
+      return `Évolution du score de ${this.fiche.region_nom} de `
+        + `${this.nombreFr(premier.score, 1)} en ${premier.annee} à `
+        + `${this.nombreFr(dernier.score, 1)} en ${dernier.annee}`;
+    },
+
+    /** Message de partage du graphique : la trajectoire, puis la fiche. */
+    messageGraphique() {
+      const nom = this.fiche ? this.fiche.region_nom : 'la région';
+      const sujet = `EduAlert BF — évolution du score, ${nom}`;
+      let corps = `Évolution du score de risque — ${nom}\n`;
+      if (this.courbeFiche) {
+        const premier = this.courbeFiche.points[0];
+        const dernier = this.courbeFiche.dernier;
+        corps += `De ${this.nombreFr(premier.score, 1)} en ${premier.annee} `
+          + `à ${this.nombreFr(dernier.score, 1)} en ${dernier.annee} `
+          + `(${this.libelleNiveau(dernier.niveau).toLowerCase()}).\n`;
+      }
+      corps += `\nFiche complète : ${this.lienPartage}`;
+      return { sujet, corps };
+    },
+
+    lienGmailGraphique() {
+      const { sujet, corps } = this.messageGraphique;
+      return 'https://mail.google.com/mail/?view=cm&fs=1'
+        + `&su=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+    },
+
+    lienOutlookGraphique() {
+      const { sujet, corps } = this.messageGraphique;
+      return 'https://outlook.live.com/mail/0/deeplink/compose'
+        + `?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+    },
+
+    /** Adresse partagee : la fiche PDF si une region est ouverte, sinon la page. */
+    lienPartage() {
+      if (this.fiche) {
+        return new URL(`../regions/${this.fiche.region_code}/fiche.pdf`, window.location.href).href;
+      }
+      return `${window.location.origin}${window.location.pathname}`;
+    },
+
+    messagePartage() {
+      const sujet = this.fiche
+        ? `EduAlert BF — fiche ${this.fiche.region_nom}`
+        : `EduAlert BF — risque de décrochage scolaire ${this.annee}`;
+      const corps = this.fiche
+        ? `${this.fiche.region_nom} : score de risque ${this.nombreFr(this.ficheScore, 1)} sur 100, `
+          + `niveau ${this.libelleNiveau(this.ficheNiveau).toLowerCase()}.\n\nFiche : ${this.lienPartage}`
+        : `Carte et classement du risque de décrochage scolaire par région, ${this.annee}.`
+          + `\n\n${this.lienPartage}`;
+      return { sujet, corps };
+    },
+
+    lienGmail() {
+      const { sujet, corps } = this.messagePartage;
+      return 'https://mail.google.com/mail/?view=cm&fs=1'
+        + `&su=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+    },
+
+    lienOutlook() {
+      const { sujet, corps } = this.messagePartage;
+      return 'https://outlook.live.com/mail/0/deeplink/compose'
+        + `?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+    },
+
+    /** Écart de score entre la région la plus et la moins exposée. */
+    ecartExtremes() {
+      if (this.classement.length < 2) return 0;
+      return this.classement[0].score - this.classement[this.classement.length - 1].score;
     },
 
     /**
@@ -191,6 +638,18 @@ createApp({
     },
   },
 
+  watch: {
+    /**
+     * La fiche est une page autonome : le bandeau de chiffres, le selecteur
+     * d'annee et le glossaire disparaissent autour d'elle. La classe est
+     * posee sur <body> et non sur #application : Vue ne traite pas les
+     * attributs de l'element sur lequel il est monte.
+     */
+    fiche(ouverte) {
+      document.body.classList.toggle('mode-fiche', Boolean(ouverte));
+    },
+  },
+
   methods: {
     /** Nombre au format francais : virgule decimale, espace pour les milliers. */
     nombreFr(valeur, decimales = 1) {
@@ -211,6 +670,26 @@ createApp({
     libelleNiveau(niveau) { return LIBELLES_NIVEAU[this.classeNiveau(niveau)]; },
 
     couleurNiveau(niveau) { return COULEURS_RISQUE[this.classeNiveau(niveau)]; },
+
+    seuilNiveau(niveau) {
+      return {
+        critique: '66 et plus',
+        modere: '33 à 66',
+        faible: 'moins de 33',
+      }[this.classeNiveau(niveau)];
+    },
+
+    changerOnglet(nom) {
+      this.onglet = nom;
+      if (nom !== 'carte') return;
+      // La carte etait masquee : Leaflet a perdu ses dimensions, il faut les
+      // remesurer avant de recadrer.
+      this.$nextTick(() => {
+        if (!this.carte) return;
+        this.carte.invalidateSize({ pan: false });
+        this.cadrer();
+      });
+    },
 
     libelleFacteur(code) {
       if (!code) return '—';
@@ -243,25 +722,76 @@ createApp({
       return { groupe: `le ${nom}`, verbe: 'est' };
     },
 
-    /** Deux premiers facteurs : avec un seul, la colonne ne distinguait rien. */
-    premiersFacteurs(facteurs) {
-      const codes = (facteurs || '').split(';').filter(Boolean).slice(0, 2);
-      if (!codes.length) return '—';
-      return codes.map((c) => this.libelleFacteur(c)).join(', ');
+    /** Deux puces courtes (libelle + pictogramme), pour le classement. */
+    facteursCourts(facteurs) {
+      return (facteurs || '').split(';').filter(Boolean).slice(0, 2).map((code) => {
+        const court = FACTEURS_COURTS[code]
+          || { libelle: code.replace(/_/g, ' '), icone: 'neutre' };
+        return {
+          code,
+          libelle: court.libelle,
+          icone: ICONES_FACTEURS[court.icone] || ICONES_FACTEURS.neutre,
+        };
+      });
     },
 
     /**
-     * Evolution du score par rapport a l'annee precedente.
-     * Le seuil de 1 point evite d'annoncer une « hausse » pour 0,2 point,
-     * qui n'a aucun sens a l'echelle d'un indice compose.
+     * Courbe des scores d'une region, en coordonnees SVG 96 x 26.
+     * L'echelle est commune a toutes les regions (0-100) : deux courbes se
+     * comparent donc d'une ligne a l'autre, au lieu d'etre recadrees chacune.
      */
-    evolution(ligne) {
-      const avant = this.classementPrecedent.find((r) => r.region_code === ligne.region_code);
-      if (!avant) return { sens: 'stable', fleche: '–', mot: 'n.d.' };
-      const delta = ligne.score - avant.score;
-      if (delta > 1) return { sens: 'hausse', fleche: '▲', mot: 'hausse' };
-      if (delta < -1) return { sens: 'baisse', fleche: '▼', mot: 'baisse' };
-      return { sens: 'stable', fleche: '=', mot: 'stable' };
+    miniCourbe(code) {
+      const serie = this.seriesParRegion[code] || [];
+      if (serie.length < 2) return null;
+      const largeur = 96;
+      const hauteur = 26;
+      const marge = 3;
+      const points = serie.map((h, i) => {
+        const x = marge + ((largeur - 2 * marge) * i) / (serie.length - 1);
+        const y = hauteur - marge
+          - (Math.max(0, Math.min(100, h.score)) / 100) * (hauteur - 2 * marge);
+        return { x: +x.toFixed(1), y: +y.toFixed(1) };
+      });
+      const fin = points[points.length - 1];
+      return {
+        points: points.map((p) => `${p.x},${p.y}`).join(' '),
+        finX: fin.x,
+        finY: fin.y,
+        debut: serie[0].annee,
+        debutScore: serie[0].score,
+        dernier: fin.annee,
+        dernierScore: fin.score,
+      };
+    },
+
+    ariaCourbe(ligne) {
+      const c = ligne.courbe;
+      if (!c) return '';
+      return `Score de ${this.nombreFr(c.debutScore, 1)} en ${c.debut} `
+        + `à ${this.nombreFr(c.dernierScore, 1)} en ${c.dernier}`;
+    },
+
+    /** Echelle commune aux deux barres (region et moyenne) d'un indicateur. */
+    echelleIndicateur(ind) {
+      const max = Math.max(Math.abs(ind.valeur || 0), Math.abs(ind.moyenne || 0));
+      // Un taux brut peut depasser 100 : l'echelle suit alors la valeur, sinon
+      // le trait de la moyenne sortirait de la piste.
+      const base = ind.echelle || 0;
+      return Math.max(base, max * 1.05) || 1;
+    },
+
+    /** Écart signé, sans « -0,0 » : un écart nul s'écrit 0,0. */
+    formatEcart(ecart) {
+      if (Math.abs(ecart) < 0.05) return '0,0';
+      return `${ecart > 0 ? '+' : ''}${this.nombreFr(ecart, 1)}`;
+    },
+
+    largeurIndicateur(ind) {
+      return Math.min(100, (Math.abs(ind.valeur) / this.echelleIndicateur(ind)) * 100);
+    },
+
+    largeurMoyenne(ind) {
+      return Math.min(100, (Math.abs(ind.moyenne) / this.echelleIndicateur(ind)) * 100);
     },
 
     /**
@@ -299,12 +829,158 @@ createApp({
       return valeurs.reduce((a, b) => a + b, 0) / valeurs.length;
     },
 
-    basculerAide() {
-      this.aideOuverte = !this.aideOuverte;
-      try { localStorage.setItem('edualert-aide-vue', '1'); } catch (e) { /* navigation privee */ }
+    /**
+     * Imprimer, c'est imprimer le PDF de la fiche, pas la page web : le
+     * navigateur ouvre le PDF dans un onglet, pret a sortir sur papier.
+     */
+    imprimer() {
+      if (!this.fiche) return;
+      const url = new URL(`../regions/${this.fiche.region_code}/fiche.pdf`,
+        window.location.href).href;
+      window.open(url, '_blank', 'noopener');
     },
 
-    imprimer() { window.print(); },
+    choisirGraphique(type) {
+      if (!this.typesGraphique.some((t) => t.code === type)) return;
+      this.typeGraphique = type;
+      this.survol = null;
+      try { localStorage.setItem('edualert-graphique', type); } catch (e) { /* navigation privee */ }
+    },
+
+    survolner(point) { this.survol = point; },
+
+    /** Position de l'infobulle de survol, rabattue aux deux bords. */
+    positionInfo() {
+      if (!this.survol) return '';
+      const decalage = this.survol.x < 90 ? '-12%' : (this.survol.x > 510 ? '-88%' : '-50%');
+      return `left:${(this.survol.x / 600) * 100}%;`
+        + `top:${(this.survol.y / 220) * 100}%;`
+        + `transform:translate(${decalage}, -118%);`;
+    },
+
+    /**
+     * Agrandit le graphique sur tout l'ecran. Un agrandissement CSS plutot que
+     * l'API Fullscreen : cette derniere est refusee hors geste utilisateur et
+     * n'existe pas sur iPhone pour un simple bloc.
+     */
+    basculerPleinEcran() {
+      this.pleinEcran = !this.pleinEcran;
+      document.body.classList.toggle('sans-defilement', this.pleinEcran);
+      if (this.carte) setTimeout(() => this.carte.invalidateSize({ pan: false }), 150);
+    },
+
+    /**
+     * Imprime le graphique seul. Une fenetre neuve ne contient que le titre,
+     * la phrase de lecture et le graphique ; la feuille de style de
+     * l'application est rechargee pour que le rendu soit identique.
+     */
+    imprimerGraphique() {
+      if (!this.fiche) return;
+      const cadre = this.$refs.cadreGraphique;
+      const corps = cadre && cadre.querySelector('.carte-graphique');
+      if (!corps) return;
+      const fenetre = window.open('', '_blank');
+      if (!fenetre) return;
+      const feuille = new URL('style.css', window.location.href).href;
+      const titre = `Évolution du score — ${this.fiche.region_nom}`;
+      fenetre.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8">
+        <title>${titre}</title><link rel="stylesheet" href="${feuille}">
+        <style>
+          body { background:#fff; padding:20px; }
+          .entete-graphique h1 { font-size:18px; color:#0B5E3A; margin:0 0 3px; }
+          .entete-graphique p { font-size:12px; color:#4A545E; margin:0 0 14px; }
+          .carte-graphique { max-width:1040px; }
+          .info-graphique, .partage { display:none !important; }
+          @page { size:A4 landscape; margin:12mm; }
+        </style></head><body>
+        <div class="entete-graphique"><h1>${titre}</h1><p>${this.phraseGraphique}</p></div>
+        <div class="carte-graphique">${corps.innerHTML}</div>
+        </body></html>`);
+      fenetre.document.close();
+      fenetre.focus();
+      setTimeout(() => { fenetre.print(); }, 400);
+    },
+
+    /** Exporte le graphique en PNG (2x) pour le joindre à un message. */
+    telechargerGraphique() {
+      const cadre = this.$refs.cadreGraphique;
+      const svg = cadre && cadre.querySelector('svg');
+      if (!svg) return;
+      const clone = svg.cloneNode(true);
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+      style.textContent = '.graphique-svg__grille line{stroke:#E3E9EC}'
+        + '.graphique-svg__grille text,.graphique-svg__annees text{fill:#5A6670;font-size:10px;font-family:Inter,Arial,sans-serif}'
+        + '.graphique-svg__ligne{fill:none;stroke:#0B5E3A;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}'
+        + '.graphique-svg__prevision{stroke:#2B333B;stroke-width:2;stroke-dasharray:5 4}'
+        + '.graphique-svg__aire{opacity:.16}.graphique-svg__barre.est-survole{stroke:#0E1B14;stroke-width:1.5}';
+      clone.insertBefore(style, clone.firstChild);
+      const donnees = new XMLSerializer().serializeToString(clone);
+      const url = URL.createObjectURL(new Blob([donnees], { type: 'image/svg+xml;charset=utf-8' }));
+      const image = new Image();
+      image.onload = () => {
+        const toile = document.createElement('canvas');
+        toile.width = 1200;
+        toile.height = 440;
+        const contexte = toile.getContext('2d');
+        contexte.fillStyle = '#FFFFFF';
+        contexte.fillRect(0, 0, toile.width, toile.height);
+        contexte.drawImage(image, 0, 0, toile.width, toile.height);
+        URL.revokeObjectURL(url);
+        toile.toBlob((png) => {
+          if (!png) return;
+          const lien = document.createElement('a');
+          lien.href = URL.createObjectURL(png);
+          lien.download = `edualert-${this.fiche.region_code}-evolution.png`;
+          lien.click();
+          setTimeout(() => URL.revokeObjectURL(lien.href), 2000);
+        }, 'image/png');
+      };
+      image.src = url;
+    },
+
+    basculerPartageGraphique() {
+      this.partageGraphiqueOuvert = !this.partageGraphiqueOuvert;
+      this.lienGraphiqueCopie = false;
+    },
+
+    fermerPartageGraphique() { this.partageGraphiqueOuvert = false; },
+
+    async copierLienGraphique() {
+      try {
+        await navigator.clipboard.writeText(this.lienPartage);
+        this.lienGraphiqueCopie = true;
+      } catch (e) {
+        this.lienGraphiqueCopie = false;
+      }
+    },
+
+    basculerPartage() {
+      this.partageOuvert = !this.partageOuvert;
+      this.lienCopie = false;
+    },
+
+    fermerPartage() { this.partageOuvert = false; },
+
+    async copierLien() {
+      try {
+        await navigator.clipboard.writeText(this.lienPartage);
+        this.lienCopie = true;
+      } catch (e) {
+        // Navigateur sans presse-papiers : on selectionne l'adresse a la main.
+        this.lienCopie = false;
+      }
+    },
+
+    ouvrirGlossaire() {
+      const panneau = this.$refs.glossaire;
+      if (panneau && !panneau.open) panneau.showModal();
+    },
+
+    fermerGlossaire() {
+      const panneau = this.$refs.glossaire;
+      if (panneau && panneau.open) panneau.close();
+    },
 
     async json(chemin) {
       const reponse = await fetch(chemin);
@@ -357,8 +1033,18 @@ createApp({
       return this.estPrevision ? this.anneePrevision - 1 : this.annee;
     },
 
+    allerPage(index) {
+      this.pageFiche = Math.max(0, Math.min(this.pagesFiche.length - 1, index));
+    },
+
+    pageSuivante() { this.allerPage(this.pageFiche + 1); },
+
+    pagePrecedente() { this.allerPage(this.pageFiche - 1); },
+
     async ouvrirFiche(code) {
       try {
+        this.ongletPrecedent = this.onglet;
+        this.pageFiche = 0;
         this.fiche = await this.json(`../regions/${code}/fiche`);
         this.mettreEnValeur(code);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -374,7 +1060,14 @@ createApp({
 
     fermerFiche() {
       this.fiche = null;
+      this.onglet = this.ongletPrecedent || 'carte';
       this.dessinerRegions();
+      // La carte vient de reapparaitre : ses dimensions ont change.
+      this.$nextTick(() => {
+        if (!this.carte) return;
+        this.carte.invalidateSize({ pan: false });
+        this.cadrer();
+      });
     },
 
     mettreEnValeur(code) {
@@ -392,6 +1085,18 @@ createApp({
       return ligne && this.classeNiveau(ligne.niveau) === 'critique' ? 2.2 : 1;
     },
 
+    styleRegion(feature, parCode) {
+      const ligne = parCode[feature.properties.region_code];
+      return {
+        fillColor: ligne ? this.couleurNiveau(ligne.niveau) : '#D5DBE0',
+        fillOpacity: 0.92,
+        color: this.estPrevision ? '#1F3A2C' : '#FFFFFF',
+        weight: this.epaisseur(feature),
+        dashArray: this.estPrevision ? '6 4' : null,
+        lineJoin: 'round',
+      };
+    },
+
     dessinerRegions() {
       if (!this.carte || !this.geojson) return;
 
@@ -403,61 +1108,88 @@ createApp({
       this.classement.forEach((r) => { parCode[r.region_code] = r; });
 
       this.coucheRegions = L.geoJSON(this.geojson, {
-        style: (feature) => {
-          const ligne = parCode[feature.properties.region_code];
-          return {
-            fillColor: ligne ? this.couleurNiveau(ligne.niveau) : '#D5DBE0',
-            fillOpacity: 0.88,
-            color: this.estPrevision ? '#2B333B' : '#FFFFFF',
-            weight: this.epaisseur(feature),
-            dashArray: this.estPrevision ? '4 3' : null,
-          };
-        },
+        style: (feature) => this.styleRegion(feature, parCode),
         onEachFeature: (feature, couche) => {
           const code = feature.properties.region_code;
           const ligne = parCode[code];
           const nom = (ligne && ligne.region_nom) || feature.properties.region_nom || code;
           if (ligne) {
             couche.bindTooltip(
-              `<strong>${nom}</strong><br>Score ${this.nombreFr(ligne.score, 1)} `
-              + `— ${this.libelleNiveau(ligne.niveau)}`,
-              { sticky: true });
+              `<span class="infobulle__nom">${nom}</span>`
+              + `<span class="infobulle__score">${this.nombreFr(ligne.score, 1)}`
+              + '<small>/100</small></span>'
+              + `<span class="infobulle__niveau">${this.libelleNiveau(ligne.niveau)}</span>`
+              + '<span class="infobulle__aide">Cliquez pour ouvrir la fiche</span>',
+              { sticky: true, direction: 'top', className: 'infobulle-carte', opacity: 1 });
           }
+          // Survol : la region se detache (contour sombre, teinte pleine).
+          couche.on('mouseover', () => {
+            couche.setStyle({ weight: 2.6, color: '#12331F', fillOpacity: 1 });
+            couche.bringToFront();
+          });
+          couche.on('mouseout', () => {
+            if (this.coucheRegions) this.coucheRegions.resetStyle(couche);
+          });
           couche.on('click', () => this.ouvrirFiche(code));
           couche.on('keydown', (e) => { if (e.originalEvent.key === 'Enter') this.ouvrirFiche(code); });
         },
       }).addTo(this.carte);
 
-      this.poserEtiquettes(parCode);
       this.cadrer();
+      this.poserEtiquettes(parCode);
     },
 
     /**
-     * Nom de chaque region ecrit en permanence sur la carte.
-     * Leaflet place les info-bulles au centre du polygone ; pour les regions
-     * etroites, on reduit la taille du texte plutot que de le laisser deborder
-     * sur la voisine.
+     * Nom et score de chaque region, poses au point le plus large du polygone.
+     * Trois tailles selon l'aire : une petite region recoit un nom seul, sans
+     * score, pour ne pas deborder sur sa voisine.
      */
+    /**
+     * Ancre et taille d'etiquette d'une region, calculees une seule fois :
+     * la geometrie ne change pas d'une annee a l'autre, et polylabel est
+     * couteux.
+     */
+    ancreEtiquette(couche) {
+      const code = couche.feature.properties.region_code;
+      this._ancres = this._ancres || {};
+      if (this._ancres[code]) return this._ancres[code];
+
+      const geometrie = couche.feature.geometry;
+      const anneaux = geometrie.type === 'Polygon'
+        ? [geometrie.coordinates[0]]
+        : geometrie.coordinates.map((polygone) => polygone[0]);
+      let anneau = anneaux[0];
+      anneaux.forEach((candidat) => {
+        if (aireAnneau(candidat) > aireAnneau(anneau)) anneau = candidat;
+      });
+      const aire = aireAnneau(anneau);
+      const [lon, lat] = pointEtiquette(anneau);
+      const taille = aire > 1.2 ? 'grande' : (aire > 0.4 ? 'moyenne' : 'petite');
+      this._ancres[code] = { lon, lat, aire, taille };
+      return this._ancres[code];
+    },
+
     poserEtiquettes(parCode) {
       this.coucheRegions.eachLayer((couche) => {
         const code = couche.feature.properties.region_code;
         const ligne = parCode[code];
         const nom = (ligne && ligne.region_nom) || couche.feature.properties.region_nom || code;
 
-        const bornes = couche.getBounds();
-        const largeurDeg = bornes.getEast() - bornes.getWest();
-        // Seuil mesure sur le fond de carte : au-dela de ~11 caracteres dans
-        // un polygone etroit, l'etiquette chevauche la region voisine.
-        const petite = nom.length > 11 && largeurDeg < 1.6;
+        const { lon, lat, taille } = this.ancreEtiquette(couche);
+        const score = ligne ? Math.round(ligne.score) : null;
+        const contenu = `<span class="etiquette-region__nom">${nom}</span>`
+          + (score !== null && taille !== 'petite'
+            ? `<span class="etiquette-region__score">${score}</span>`
+            : '');
 
         const etiquette = L.tooltip({
           permanent: true,
           direction: 'center',
-          className: 'etiquette-region' + (petite ? ' etiquette-region--petite' : ''),
           opacity: 1,
+          className: `etiquette-region etiquette-region--${taille}`,
         })
-          .setContent(nom)
-          .setLatLng(couche.getBounds().getCenter());
+          .setContent(contenu)
+          .setLatLng([lat, lon]);
 
         etiquette.addTo(this.carte);
         this.etiquettes.push(etiquette);
@@ -466,16 +1198,17 @@ createApp({
 
     cadrer() {
       if (!this.coucheRegions) return;
-      this.carte.fitBounds(this.coucheRegions.getBounds(), { padding: [12, 12] });
+      // Sans animation : la projection doit etre definitive avant que les
+      // etiquettes soient posees, sinon elles se decalent vers l'exterieur.
+      this.carte.fitBounds(this.coucheRegions.getBounds(), {
+        padding: [8, 8],
+        maxZoom: 8,
+        animate: false,
+      });
     },
 
     async monte() {
       try {
-        // L'encadre d'aide est ouvert a la PREMIERE visite seulement.
-        try {
-          if (localStorage.getItem('edualert-aide-vue')) this.aideOuverte = false;
-        } catch (e) { /* navigation privee : on laisse ouvert */ }
-
         const [sante, annees, geojson] = await Promise.all([
           this.json('../sante'),
           this.json('../annees'),
@@ -484,6 +1217,19 @@ createApp({
         this.sante = sante;
         this.annees = annees;
         this.geojson = geojson;
+
+        try {
+          const choisi = localStorage.getItem('edualert-graphique');
+          if (this.typesGraphique.some((t) => t.code === choisi)) this.typeGraphique = choisi;
+        } catch (e) { /* navigation privee : on garde les barres */ }
+
+        // Historique complet, pour les mini-courbes du classement. Son absence
+        // ne doit pas empecher la carte de s'afficher.
+        try {
+          this.historique = await this.json('../risque/historique');
+        } catch (e) {
+          this.historique = [];
+        }
         this.premiereAnnee = Math.min(...annees);
         this.anneePrevision = Math.max(...annees);
         // On ouvre sur la derniere annee OBSERVEE, pas sur la prevision : un
@@ -492,11 +1238,19 @@ createApp({
         this.anneeIndicateurs = this.annee;
 
         this.carte = L.map('carte', {
-          zoomControl: true,
+          zoomControl: false,              // remplace par un controle place a la main
           attributionControl: false,
-          scrollWheelZoom: false,     // evite de zoomer par accident en faisant defiler
-          zoomSnap: 0.15,
+          scrollWheelZoom: false,          // evite de zoomer par accident en faisant defiler
+          zoomSnap: 0.1,
+          zoomDelta: 0.5,
+          minZoom: 5,
+          maxZoom: 9,
+          zoomAnimation: true,
         });
+        L.control.zoom({ position: 'topright', zoomInTitle: 'Agrandir', zoomOutTitle: 'Réduire' })
+          .addTo(this.carte);
+        L.control.scale({ position: 'bottomright', imperial: false, maxWidth: 110 })
+          .addTo(this.carte);
 
         try {
           this.modele = await this.json('../modele');
@@ -507,7 +1261,18 @@ createApp({
         } catch (e) { this.modele = {}; }
 
         await this.chargerAnnee();
-        window.addEventListener('resize', () => this.cadrer());
+
+        // La hauteur du cadre depend de la fenetre : on remesure une fois la
+        // mise en page stabilisee, puis on redessine etiquettes comprises.
+        const recaler = () => {
+          if (!this.carte) return;
+          this.carte.invalidateSize({ pan: false });
+          this.cadrer();
+        };
+        this.$nextTick(recaler);
+        window.addEventListener('resize', recaler);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(recaler);
+
       } catch (e) {
         this.chargement = false;
         this.erreur = 'Impossible de contacter le service. Vérifiez qu\'il est démarré '
@@ -516,5 +1281,33 @@ createApp({
     },
   },
 
-  mounted() { this.monte(); },
-}).mount('#application');
+  mounted() {
+    this.monte();
+
+    // Le menu de partage se ferme au clic exterieur et sur Echap.
+    document.addEventListener('click', (evenement) => {
+      if (!evenement.target.closest('.partage')) {
+        this.partageOuvert = false;
+        this.partageGraphiqueOuvert = false;
+      }
+    });
+    document.addEventListener('keydown', (evenement) => {
+      if (evenement.key === 'Escape') {
+        this.partageOuvert = false;
+        this.partageGraphiqueOuvert = false;
+        if (this.pleinEcran) this.basculerPleinEcran();
+        return;
+      }
+      // Fleches : pages de la fiche, sauf dans un champ de saisie.
+      const cible = evenement.target;
+      const saisie = cible && (['INPUT', 'SELECT', 'TEXTAREA'].includes(cible.tagName)
+        || cible.isContentEditable);
+      if (!this.fiche || saisie) return;
+      if (evenement.key === 'ArrowRight') this.pageSuivante();
+      if (evenement.key === 'ArrowLeft') this.pagePrecedente();
+    });
+
+  },
+});
+application.component('pastille-aide', PastilleAide);
+application.mount('#application');

@@ -86,22 +86,25 @@ a { color: var(--vert-moyen); }
 .bande-nationale {
   display: flex;
   align-items: center;
-  height: 6px;
+  /* Bandeau national : rouge a gauche, vert a droite, etoile a la jonction.
+     Assez epais pour etre lu comme un drapeau, pas comme un filet. */
+  height: 22px;
   background: linear-gradient(to right,
     var(--rouge-drapeau) 0 50%, var(--vert-drapeau) 50% 100%);
 }
 
-/* Rappel discret de l'etoile, a la jonction des deux couleurs. */
+.bande-enveloppe { position: relative; }
+
 .bande-nationale__etoile {
   position: absolute;
   left: 50%;
-  transform: translate(-50%, -1px);
+  top: 50%;
+  transform: translate(-50%, -50%);
   color: var(--jaune-etoile);
-  font-size: 11px;
+  font-size: 27px;
   line-height: 1;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.35);
 }
-
-.bande-enveloppe { position: relative; }
 
 .entete {
   background: var(--vert-fonce);
@@ -212,11 +215,11 @@ a { color: var(--vert-moyen); }
 
 .chiffre {
   background: var(--blanc);
-  padding: 15px 16px 14px;
+  padding: 12px 16px 11px;
 }
 
 .chiffre__valeur {
-  font-size: 30px;
+  font-size: 27px;
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.02em;
@@ -817,4 +820,1474 @@ a { color: var(--vert-moyen); }
 /* Respecte le reglage systeme « animations reduites ». */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ==========================================================================
+   11. Refonte : la carte en page d'accueil, le classement en page propre
+   --------------------------------------------------------------------------
+   La carte occupe toute la largeur disponible et porte les chiffres : nom et
+   score de chaque region. Tout ce qui se lisait dans la colonne de droite
+   (classement complet) a sa propre page, atteignable par les onglets.
+   ========================================================================== */
+
+/* --- Onglets ------------------------------------------------------------- */
+
+.onglets {
+  display: flex;
+  gap: 4px;
+  margin-top: 20px;
+  border-bottom: 1px solid var(--gris-ligne);
+}
+
+.onglet {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 18px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 3px solid transparent;
+  border-radius: var(--rayon) var(--rayon) 0 0;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 650;
+  color: var(--encre-douce);
+  cursor: pointer;
+}
+
+.onglet:hover { background: #EAF1ED; color: var(--vert-fonce); }
+
+.onglet--actif {
+  background: var(--blanc);
+  border-color: var(--gris-ligne);
+  border-bottom: 3px solid var(--jaune-etoile);
+  color: var(--vert-fonce);
+}
+
+.onglet__icone { font-size: 11px; opacity: 0.75; }
+
+/* --- Carte ---------------------------------------------------------------- */
+
+.vue-carte { margin-top: 18px; }
+
+.carte-hero {
+  background: var(--blanc);
+  border: 1px solid var(--gris-ligne);
+  border-radius: var(--rayon);
+  padding: 20px 22px 12px;
+}
+
+.carte-hero__entete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.carte-hero__titre {
+  font-size: 23px;
+  letter-spacing: -0.012em;
+  color: var(--vert-fonce);
+}
+
+.carte-hero__sous-titre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin: 5px 0 0;
+  font-size: 13.5px;
+  color: var(--encre-douce);
+}
+
+.carte-hero__sous-titre strong { font-size: 15px; color: var(--encre); }
+.carte-hero__sep { color: #B3BDC4; }
+
+.marqueur-prevision {
+  padding: 2px 8px;
+  background: #FCEFB4;
+  border: 1px dashed #B9922A;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #5A3F00;
+}
+
+.carte-hero__indice {
+  margin: 0;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--encre);
+}
+
+.carte-hero__indice span {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--encre-douce);
+}
+
+/* Le cadre porte la carte, la legende flottante et les commandes Leaflet.
+   overflow:hidden garde les coins nets ; la carte n'a pas de fond a elle,
+   c'est un degrade tres clair qui la detache du blanc de la page. */
+.cadre-carte {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #DCE3E6;
+  border-radius: 6px;
+  background:
+    radial-gradient(120% 90% at 50% 35%, #FCFEFD 0%, #F0F5F2 62%, #EAF1ED 100%);
+}
+
+#carte {
+  width: 100%;
+  height: clamp(600px, 74vh, 780px);
+  background: transparent;
+}
+
+.leaflet-container { font-family: inherit; background: transparent !important; }
+
+/* Pas de filtre drop-shadow sur le trace : sur une carte de cette taille, le
+   navigateur doit rastériser tout le SVG a chaque repeint, ce qui bloque le
+   rendu sur les machines modestes. Le cadre porte deja l'ombre. */
+
+/* Etiquettes posees sur la carte : nom + score, halo blanc pour rester
+   lisibles sur les trois couleurs de risque. */
+.leaflet-tooltip.etiquette-region {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  font-size: 11px;
+  line-height: 1.12;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.leaflet-tooltip.etiquette-region::before { display: none; }
+
+.etiquette-region__nom {
+  font-weight: 650;
+  font-size: 11.5px;
+  color: #12241B;
+  letter-spacing: 0.005em;
+  text-shadow:
+    0 0 3px #FFF, 0 0 3px #FFF, 0 1px 2px rgba(255, 255, 255, 0.95);
+}
+
+.etiquette-region__score {
+  margin-top: 1px;
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: #0D1B13;
+  text-shadow:
+    0 0 4px #FFF, 0 0 4px #FFF, 0 1px 3px rgba(255, 255, 255, 0.95);
+}
+
+.leaflet-tooltip.etiquette-region--moyenne .etiquette-region__nom { font-size: 10px; }
+.leaflet-tooltip.etiquette-region--moyenne .etiquette-region__score { font-size: 13px; }
+.leaflet-tooltip.etiquette-region--petite .etiquette-region__nom {
+  font-size: 9.5px;
+  letter-spacing: 0;
+  font-weight: 750;
+  /* Sur une petite region, un halo large mangerait les glyphes : on le
+     resserre et on fonce le texte. */
+  color: #06130C;
+  text-shadow: 0 0 2px #FFF, 0 0 2px #FFF;
+}
+
+/* Infobulle de survol : le detail d'une region, sans quitter la carte. */
+.leaflet-tooltip.infobulle-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 9px 12px 8px;
+  background: #0E1B14;
+  border: 0;
+  border-radius: 6px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  color: var(--blanc);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.leaflet-tooltip.infobulle-carte::before { display: none; }
+
+.infobulle__nom { font-size: 13px; font-weight: 700; }
+.infobulle__score { font-size: 21px; font-weight: 750; line-height: 1.15; }
+.infobulle__score small { font-size: 11px; font-weight: 500; opacity: 0.7; }
+.infobulle__niveau {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  opacity: 0.85;
+}
+.infobulle__aide {
+  margin-top: 5px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 10.5px;
+  opacity: 0.6;
+}
+
+/* --- Legende flottante ---------------------------------------------------- */
+
+.overlay {
+  position: absolute;
+  z-index: 500;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid var(--gris-ligne);
+  border-radius: 6px;
+  box-shadow: 0 8px 20px rgba(15, 40, 30, 0.12);
+}
+
+.overlay--legende {
+  left: 14px;
+  bottom: 14px;
+  min-width: 214px;
+  padding: 11px 13px 9px;
+}
+
+.overlay__titre {
+  margin: 0 0 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--encre-douce);
+}
+
+.echelle { display: flex; flex-direction: column; gap: 5px; margin: 0; padding: 0; list-style: none; }
+
+.echelle__ligne {
+  display: grid;
+  grid-template-columns: 12px 1fr auto 18px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.echelle__pastille {
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 2px;
+}
+
+.echelle__nom { font-weight: 600; }
+.echelle__seuil { font-size: 11.5px; color: var(--encre-douce); }
+.echelle__compte { font-weight: 700; text-align: right; }
+
+/* --- Commandes Leaflet, alignees sur le reste de l'interface -------------- */
+
+.leaflet-control-zoom {
+  border: 1px solid var(--gris-ligne) !important;
+  border-radius: 5px !important;
+  overflow: hidden;
+  box-shadow: 0 6px 16px rgba(15, 40, 30, 0.14) !important;
+}
+
+.leaflet-control-zoom a {
+  width: 30px;
+  height: 30px;
+  line-height: 30px;
+  font-size: 17px;
+  color: var(--vert-fonce) !important;
+  background: var(--blanc) !important;
+}
+
+.leaflet-control-zoom a:hover { background: var(--vert-clair) !important; }
+
+.leaflet-control-scale-line {
+  border-color: #9AA6AF;
+  color: #33413A;
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.carte-hero__pied {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 16px;
+  margin: 9px 2px 0;
+  font-size: 12px;
+  color: var(--encre-douce);
+}
+
+.carte-hero__source { color: #6B7780; }
+
+/* --- Deux encadres de lecture -------------------------------------------- */
+
+.duo {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.duo .bloc { margin-top: 0; }
+
+.duo__titre {
+  margin-bottom: 5px;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--vert-fonce);
+}
+
+.duo__texte { margin: 0; font-size: 14.5px; line-height: 1.55; }
+
+/* --- Page classement ------------------------------------------------------ */
+
+.vue-classement { margin-top: 18px; }
+.bloc--classement { margin-top: 0; }
+
+.classement-entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-bottom: 4px;
+}
+
+.repartition {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.repartition__item { display: flex; align-items: center; gap: 6px; }
+
+.repartition__pastille {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.tableau-classement td { padding: 10px 9px; }
+
+.col-region { min-width: 170px; }
+.col-score { width: 200px; }
+
+.cellule-score {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.jauge {
+  display: inline-block;
+  flex: 1;
+  max-width: 108px;
+  height: 6px;
+  background: #E7ECEE;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.jauge__part {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.col-action {
+  width: 26px;
+  text-align: right;
+  color: var(--vert-moyen);
+  font-weight: 700;
+}
+
+/* --- Fiche region : deux colonnes sur bureau ------------------------------ */
+
+.vue-fiche { margin-top: 18px; }
+.fiche { margin-top: 0; }
+
+.fiche__entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.fiche__sur-titre {
+  margin: 0 0 3px;
+  font-size: 11.5px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--encre-douce);
+}
+
+.fiche__grille {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 0 28px;
+  margin-top: 4px;
+}
+
+.fiche__colonne--actions {
+  padding-left: 26px;
+  border-left: 1px solid var(--gris-ligne);
+}
+
+/* --- Ecrans etroits ------------------------------------------------------- */
+
+@media (max-width: 1000px) {
+  #carte { height: 560px; }
+  .duo { grid-template-columns: 1fr; }
+  .fiche__grille { grid-template-columns: 1fr; }
+  .fiche__colonne--actions {
+    margin-top: 10px;
+    padding: 16px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--gris-ligne);
+  }
+}
+
+@media (max-width: 640px) {
+  /* La carte suit la largeur de l'ecran : le pays est deux fois plus large
+     que haut, une hauteur en vh laissait de grandes bandes vides. */
+  #carte { height: clamp(290px, 76vw, 400px); }
+  .carte-hero { padding: 14px 14px 10px; }
+  .carte-hero__titre { font-size: 19px; }
+  .carte-hero__indice { display: none; }
+  .onglet { padding: 10px 12px; font-size: 13.5px; }
+
+  /* La legende quitte la carte et se pose dessous : sur 390 px, deux blocs
+     superposes mangeraient la moitie du pays. */
+  .overlay--legende {
+    position: static;
+    margin: 10px;
+    box-shadow: none;
+  }
+
+  .col-score { width: 96px; }
+  .jauge { display: none; }
+  .cellule-score { gap: 0; }
+  .col-action { display: none; }
+  .carte-hero__pied { font-size: 11.5px; }
+}
+
+/* --- Impression ----------------------------------------------------------- */
+
+@media print {
+  /* Une seule chose s'imprime : la fiche ouverte, sinon le classement.
+     La carte est un ecran, pas un document. */
+  .onglets, .vue-carte, .barre-bloc, .duo { display: none !important; }
+  .vue-classement { display: block !important; margin-top: 0; }
+  .mode-fiche .vue-classement { display: none !important; }
+  .vue-fiche { margin-top: 0; }
+  .bouton-retour, .actions-fiche { display: none !important; }
+  .fiche__grille { display: block; }
+  .fiche__colonne--actions { padding-left: 0; border-left: 0; }
+  .jauge { display: none; }
+}
+
+/* Details de finition de la carte : survol, transition de couleur au
+   changement d'annee, curseur. */
+.leaflet-overlay-pane path.leaflet-interactive {
+  cursor: pointer;
+  transition: fill 0.35s ease, fill-opacity 0.2s ease, stroke 0.2s ease;
+}
+
+.bloc--barre { padding: 13px 20px 12px; }
+
+@media (max-width: 640px) {
+  .bloc--barre { padding: 12px 14px; }
+}
+
+/* La fiche est une page a part entiere : ni bandeau de chiffres, ni
+   selecteur d'annee, ni glossaire autour. */
+.mode-fiche .section-chiffres,
+.mode-fiche .bloc--barre,
+.mode-fiche .aide,
+.mode-fiche .glossaire { display: none; }
+
+.mode-fiche .vue-fiche { margin-top: 8px; }
+
+/* Sur telephone la carte est petite : le texte est reduit, et une region
+   minuscule perd son etiquette plutot que de la voir chevaucher sa voisine.
+   Mesure a 390 px : aucun chevauchement avec ces reglages. */
+@media (max-width: 640px) {
+  .leaflet-tooltip.etiquette-region--petite { display: none; }
+  .leaflet-tooltip.etiquette-region .etiquette-region__nom { font-size: 8.5px; }
+  /* Sur 390 px, deux lignes par region se touchent : on garde le nom, le
+     score reste accessible en touchant la region (infobulle + fiche). */
+  .leaflet-tooltip.etiquette-region .etiquette-region__score { display: none; }
+}
+
+/* ==========================================================================
+   12. Allègement : aide sous pastille, faits en chiffres, pied compact
+   ========================================================================== */
+
+/* --- Pastille d'aide ------------------------------------------------------ */
+
+.pastille-aide { display: inline-flex; vertical-align: middle; }
+
+.pastille-aide__bouton {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid #9AA6AF;
+  border-radius: 50%;
+  background: var(--blanc);
+  color: #4A545E;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Cible tactile de 32 px sans agrandir le dessin. */
+.pastille-aide__bouton::after { content: ''; position: absolute; inset: -6px; }
+
+.pastille-aide__bouton:hover {
+  border-color: var(--vert-moyen);
+  background: var(--vert-clair);
+  color: var(--vert-fonce);
+}
+
+.pastille-aide__panneau {
+  position: fixed;
+  z-index: 3000;
+  display: block;
+  padding: 10px 13px 11px;
+  border-radius: 6px;
+  background: #0E1B14;
+  color: var(--blanc);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.3);
+  text-align: left;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+}
+
+.pastille-aide__titre {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.pastille-aide__texte {
+  display: block;
+  font-size: 13px;
+  line-height: 1.5;
+  hyphens: auto;
+}
+
+/* Dans les titres de section, la pastille ne prend pas la casse du titre. */
+.titre-section .pastille-aide__bouton,
+.overlay__titre .pastille-aide__bouton {
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* --- Chiffres clés : valeur + libellé court + aide ------------------------ */
+
+.chiffre__ligne {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.chiffre__intitule { margin-top: 0; }
+
+/* --- Trois faits chiffrés sous la carte ----------------------------------- */
+
+.faits {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 16px;
+  background: var(--gris-ligne);
+  border: 1px solid var(--gris-ligne);
+  border-radius: var(--rayon);
+  overflow: hidden;
+}
+
+.fait {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 13px 16px;
+  background: var(--blanc);
+  min-width: 0;
+}
+
+.fait__valeur {
+  font-size: 26px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--vert-fonce);
+  white-space: nowrap;
+}
+
+.fait__libelle {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--encre);
+  min-width: 0;
+}
+
+.fait__libelle em {
+  font-style: normal;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--encre-douce);
+}
+
+.duo__ligne {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 2px 0;
+  font-size: 13px;
+  color: var(--encre-douce);
+}
+
+/* --- Pied de page compact ------------------------------------------------- */
+
+.pied { margin-top: 26px; padding: 16px 0 18px; }
+
+.pied__interieur {
+  display: block;
+  max-width: var(--colonne);
+  margin: 0 auto;
+  padding: 0 20px;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.pied p { margin: 0 0 3px; }
+.pied p:last-child { margin-bottom: 0; }
+
+.pied__liens { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+.lien-bouton {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: #FFF;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.lien-bouton:hover { color: var(--jaune-etoile); }
+
+/* --- Glossaire en panneau ------------------------------------------------- */
+
+.panneau {
+  width: min(560px, calc(100vw - 32px));
+  max-height: 80vh;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.35);
+  color: var(--encre);
+}
+
+.panneau::backdrop { background: rgba(9, 38, 26, 0.5); }
+
+.panneau__entete {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--gris-ligne);
+  background: var(--blanc);
+}
+
+.panneau__entete h2 { font-size: 17px; color: var(--vert-fonce); }
+
+.panneau__fermer {
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  color: var(--encre-douce);
+  cursor: pointer;
+}
+
+.panneau__fermer:hover { color: var(--encre); }
+
+.panneau__liste {
+  margin: 0;
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+  max-height: calc(80vh - 60px);
+}
+
+.panneau__liste dt { font-weight: 700; font-size: 13.5px; color: var(--vert-fonce); }
+.panneau__liste dd {
+  margin: 2px 0 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--encre-douce);
+}
+
+@media (max-width: 760px) {
+  .faits { grid-template-columns: 1fr; }
+  .fait { padding: 11px 14px; }
+  .fait__valeur { font-size: 23px; }
+}
+
+@media print {
+  .panneau { display: none !important; }
+}
+
+/* ==========================================================================
+   13. Classement et fiche : la donnée en visuel plutôt qu'en phrase
+   ========================================================================== */
+
+/* --- Tendance en mini-courbe -------------------------------------------- */
+
+.mini-courbe { display: block; overflow: visible; }
+
+.mini-courbe__axe { stroke: #DCE3E6; stroke-width: 1; }
+
+.mini-courbe__ligne {
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mini-courbe__point { stroke: #FFF; stroke-width: 1; }
+
+/* --- Puces de facteurs --------------------------------------------------- */
+
+.puce-facteur {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 6px;
+  margin: 2px 4px 2px 0;
+  border: 1px solid #DCE3E6;
+  border-radius: 999px;
+  background: #F7FAF9;
+  font-size: 12px;
+  font-weight: 500;
+  color: #33413A;
+  white-space: nowrap;
+}
+
+.puce-facteur__icone {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  fill: currentColor;
+  opacity: 0.7;
+}
+
+/* --- Indicateurs en barres comparatives --------------------------------- */
+
+.indicateurs { margin: 8px 0 0; padding: 0; list-style: none; }
+
+.indicateur {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(0, 1.3fr) auto 54px;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--gris-ligne);
+}
+
+.indicateur__nom { font-size: 13px; color: var(--encre); }
+
+.indicateur__piste {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: #E9EEF0;
+}
+
+.indicateur__remplissage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+}
+
+.est-favorable { background: #3F8F6A; }
+.est-defavorable { background: #B3261E; }
+
+/* Le trait de la moyenne depasse la piste : il reste visible meme quand la
+   barre de la region le recouvre. */
+.indicateur__moyenne {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: #2B333B;
+}
+
+.indicateur__valeur {
+  font-size: 13px;
+  font-weight: 650;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.indicateur__valeur em {
+  display: block;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--encre-douce);
+}
+
+.indicateur__ecart { font-size: 12.5px; font-weight: 650; text-align: right; }
+
+/* --- Pistes d'action en cartes numerotees -------------------------------- */
+
+.actions-cartes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 9px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.action-carte {
+  display: flex;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--gris-ligne);
+  border-left: 3px solid var(--jaune-etoile);
+  border-radius: var(--rayon);
+  background: var(--blanc);
+}
+
+.action-carte__num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--vert-clair);
+  color: var(--vert-fonce);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.action-carte__corps { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.action-carte__titre {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--encre-douce);
+}
+
+.action-carte__texte { font-size: 13.5px; line-height: 1.45; }
+
+/* --- Ecrans etroits ------------------------------------------------------ */
+
+@media (max-width: 640px) {
+  .mini-courbe { width: 76px; height: 22px; }
+
+  .indicateur {
+    grid-template-columns: 1fr auto;
+    gap: 4px 10px;
+    padding: 9px 0;
+  }
+
+  .indicateur__nom { grid-column: 1; }
+  .indicateur__ecart { grid-column: 2; }
+  .indicateur__piste { grid-column: 1 / -1; }
+  .indicateur__valeur { grid-column: 1 / -1; text-align: left; }
+
+  .indicateur__valeur em { display: inline; margin-left: 6px; }
+
+  .puce-facteur { font-size: 11.5px; }
+}
+
+/* --- Fiche : en-tete a droite, actions en pleine largeur ------------------ */
+
+.fiche__entete-droite {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.fiche__entete-droite .actions-fiche { margin-top: 0; }
+
+.fiche__grille { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 30px; }
+
+.puces { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+
+.fiche__actions { margin-top: 8px; }
+
+.actions-cartes--large { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+
+@media (max-width: 1000px) {
+  .fiche__entete-droite { align-items: flex-start; }
+  .actions-cartes--large { grid-template-columns: 1fr; }
+}
+
+@media print {
+  .actions-cartes--large { grid-template-columns: 1fr 1fr; }
+}
+
+/* Le titre et le score s'alignent en haut : avec les boutons sous le score,
+   un alignement en bas faisait flotter le score au-dessus du titre. */
+.fiche__entete { align-items: flex-start; }
+
+/* ==========================================================================
+   14. Drapeau, partage, choix du graphique
+   ========================================================================== */
+
+/* --- Drapeau ------------------------------------------------------------- */
+
+.entete__marque { display: flex; align-items: center; gap: 15px; min-width: 0; }
+
+.drapeau {
+  width: 54px;
+  height: 36px;
+  flex: none;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3), 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+/* --- Ligne de mentions et bouton Partager -------------------------------- */
+
+.entete__ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.bouton-partage {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: var(--rayon);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--blanc);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bouton-partage:hover { background: rgba(255, 255, 255, 0.18); }
+
+.bouton-partage__icone { width: 13px; height: 13px; fill: currentColor; }
+
+.partage { position: relative; }
+
+.partage__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 2500;
+  min-width: 186px;
+  padding: 5px;
+  background: var(--blanc);
+  border: 1px solid var(--gris-ligne);
+  border-radius: 6px;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.2);
+}
+
+.partage__item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--encre);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.partage__item:hover { background: var(--vert-clair); color: var(--vert-fonce); }
+
+.partage__etat { margin: 4px 10px 6px; font-size: 12px; color: #357553; }
+
+/* --- Choix du type de graphique ------------------------------------------ */
+
+.titre-graphique {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 20px;
+  border-bottom: 1px solid var(--gris-ligne);
+  padding-bottom: 6px;
+}
+
+.titre-graphique .titre-sous-section {
+  margin: 0;
+  padding: 0;
+  border-bottom: 0;
+}
+
+.choix-graphique {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--gris-ligne);
+  border-radius: var(--rayon);
+  background: var(--blanc);
+}
+
+.choix-graphique button {
+  padding: 5px 11px;
+  border: 0;
+  border-left: 1px solid var(--gris-ligne);
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--encre-douce);
+  cursor: pointer;
+}
+
+.choix-graphique button:first-child { border-left: 0; }
+.choix-graphique button:hover { background: var(--vert-clair); color: var(--vert-fonce); }
+.choix-graphique button.est-actif { background: var(--vert-fonce); color: var(--blanc); }
+
+/* --- Graphique (barres, courbe, aire, points) --------------------------- */
+
+.graphique-cadre { background: var(--blanc); }
+
+.graphique-entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 18px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--gris-ligne);
+}
+
+.graphique-entete .titre-sous-section { margin: 0; padding: 0; border-bottom: 0; }
+
+.graphique-outils { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+.bouton-graphique {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--gris-ligne);
+  border-radius: var(--rayon);
+  background: var(--blanc);
+  color: var(--encre-douce);
+  cursor: pointer;
+}
+
+.bouton-graphique:hover {
+  border-color: var(--vert-moyen);
+  background: var(--vert-clair);
+  color: var(--vert-fonce);
+}
+
+.bouton-graphique__icone { width: 13px; height: 13px; fill: currentColor; }
+
+.carte-graphique { position: relative; margin-top: 10px; }
+
+.graphique-svg { display: block; width: 100%; height: auto; }
+.graphique-svg__grille line { stroke: #E3E9EC; stroke-width: 1; }
+.graphique-svg__grille text { fill: #6B7780; font-size: 10px; }
+.graphique-svg__annees text { fill: #4A545E; font-size: 10px; }
+
+.graphique-svg__ligne {
+  fill: none;
+  stroke: var(--vert-fonce);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Le dernier segment (prévision) reste en pointillés, quel que soit le type. */
+.graphique-svg__prevision { stroke: #2B333B; stroke-width: 2; stroke-dasharray: 5 4; }
+
+.graphique-svg__aire { opacity: 0.16; }
+
+.graphique-svg__barre { transition: opacity 0.15s ease; }
+.graphique-svg__barre.est-survole { stroke: #0E1B14; stroke-width: 1.5; }
+
+.graphique-svg__curseur { stroke: #2B333B; stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.55; }
+.graphique-svg__point-actif { stroke: #FFF; stroke-width: 2; }
+
+/* Zones de survol transparentes : le curseur suit l'année la plus proche. */
+.graphique-svg__zone { fill: transparent; cursor: crosshair; }
+
+.info-graphique {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -118%);
+  padding: 6px 9px;
+  border-radius: 5px;
+  background: #0E1B14;
+  color: var(--blanc);
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+}
+
+.info-graphique strong { display: block; font-size: 13px; }
+.info-graphique span { font-size: 11.5px; opacity: 0.85; }
+
+/* --- Agrandissement plein écran ------------------------------------------ */
+
+.graphique-cadre.est-agrandi {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 28px 26px;
+  background: var(--blanc);
+  overflow: auto;
+}
+
+.graphique-cadre.est-agrandi .graphique-entete { margin-top: 0; }
+.graphique-cadre.est-agrandi .carte-graphique { flex: 1; display: flex; align-items: center; }
+.graphique-cadre.est-agrandi .graphique-svg { max-height: calc(100vh - 190px); }
+.graphique-cadre.est-agrandi .tableau-evolution { font-size: 15px; }
+.graphique-cadre.est-agrandi .info-graphique { font-size: 14px; }
+
+body.sans-defilement { overflow: hidden; }
+
+/* --- Tableau d'evolution ------------------------------------------------- */
+
+.tableau-evolution { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+
+.tableau-evolution th,
+.tableau-evolution td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--gris-ligne);
+  text-align: left;
+}
+
+.tableau-evolution thead th {
+  background: var(--vert-clair);
+  color: var(--vert-fonce);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tableau-evolution td.col-nombre { text-align: right; }
+
+/* --- Ecrans etroits ------------------------------------------------------ */
+
+@media (max-width: 640px) {
+  .entete__marque { align-items: flex-start; gap: 11px; }
+  .drapeau { width: 42px; height: 28px; }
+  .entete__ligne { justify-content: flex-start; }
+  .partage__menu { left: 0; right: auto; }
+}
+
+@media print {
+  .partage, .bouton-partage, .choix-graphique { display: none !important; }
+  .drapeau { box-shadow: none; }
+}
+
+@media (max-width: 640px) {
+  .graphique-outils { gap: 4px; }
+  .bouton-graphique { width: 28px; height: 26px; }
+  .choix-graphique button { padding: 4px 7px; font-size: 11.5px; }
+}
+
+@media print {
+  .graphique-outils { display: none !important; }
+}
+
+@media print {
+  .graphique-cadre.est-agrandi { position: static !important; padding: 0; }
+  body.sans-defilement { overflow: visible; }
+}
+
+/* ==========================================================================
+   15. Fiche en pages : une information par ecran, rail de navigation
+   ========================================================================== */
+
+.bande-enveloppe--pied { margin-bottom: 14px; }
+
+.fiche-barre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  margin-bottom: 12px;
+}
+
+.fiche-barre .bouton-retour { margin-bottom: 0; }
+.fiche-barre__identite { flex: 1; min-width: 220px; }
+.fiche-barre .fiche__titre { font-size: 24px; }
+.fiche-barre .actions-fiche { margin-top: 0; }
+
+.fiche-pager {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 26px;
+  align-items: start;
+}
+
+.rail-fiche {
+  position: sticky;
+  top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-right: 12px;
+  border-right: 1px solid var(--gris-ligne);
+}
+
+.rail-fiche__etape {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--rayon);
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--encre-douce);
+  text-align: left;
+  cursor: pointer;
+}
+
+.rail-fiche__etape:hover { background: var(--vert-clair); color: var(--vert-fonce); }
+.rail-fiche__etape.est-actif { background: var(--vert-fonce); color: var(--blanc); }
+
+.rail-fiche__num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #E8F0EC;
+  color: var(--vert-fonce);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.rail-fiche__etape.est-actif .rail-fiche__num { background: var(--jaune-etoile); color: #3A2E00; }
+
+.fiche-pages { min-width: 0; }
+
+/* Chaque page occupe l'ecran : le lecteur ne voit qu'une idee a la fois. */
+.page-fiche {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: calc(100vh - 265px);
+  padding: 4px 2px 8px;
+}
+
+.page-fiche__titre { font-size: 21px; color: var(--vert-fonce); }
+.page-fiche__chapeau { margin: 0; font-size: 13.5px; color: var(--encre-douce); }
+
+/* --- Page 1 : situation --- */
+
+.situation {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 30px;
+  align-items: center;
+}
+
+.jauge-score { display: grid; place-items: center; width: 190px; height: 190px; border-radius: 50%; }
+
+.jauge-score__centre {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 148px;
+  height: 148px;
+  border-radius: 50%;
+  background: var(--blanc);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.jauge-score__valeur { font-size: 40px; font-weight: 750; line-height: 1; letter-spacing: -0.02em; }
+.jauge-score__unite { margin-top: 4px; font-size: 12px; color: var(--encre-douce); }
+
+.situation__droite { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.situation__phrase { margin: 0; max-width: 62ch; font-size: 16px; line-height: 1.5; }
+
+.situation__faits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; }
+
+.fait-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 11px 14px;
+  border: 1px solid var(--gris-ligne);
+  border-left: 3px solid var(--jaune-etoile);
+  border-radius: var(--rayon);
+  background: var(--blanc);
+}
+
+.fait-carte__valeur { font-size: 22px; font-weight: 750; color: var(--vert-fonce); }
+.fait-carte__libelle { font-size: 12px; color: var(--encre-douce); }
+
+/* --- Page 2 : causes --- */
+
+.causes-cartes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cause-carte {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--gris-ligne);
+  border-radius: var(--rayon);
+  background: var(--blanc);
+}
+
+.cause-carte__icone {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--vert-clair);
+  color: var(--vert-fonce);
+}
+
+.cause-carte__icone svg { width: 17px; height: 17px; fill: currentColor; }
+.cause-carte__corps { display: flex; flex-direction: column; gap: 3px; }
+.cause-carte__titre { font-size: 14.5px; font-weight: 700; }
+.cause-carte__texte { font-size: 13px; line-height: 1.45; color: var(--encre-douce); }
+
+/* --- Pagination --- */
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--gris-ligne);
+}
+
+.pager__bouton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 7px 14px;
+  border: 1px solid #9AA6AF;
+  border-radius: var(--rayon);
+  background: var(--blanc);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--encre);
+  cursor: pointer;
+}
+
+.pager__bouton:hover:not(:disabled) { border-color: var(--vert-moyen); background: var(--vert-clair); }
+.pager__bouton:disabled { opacity: 0.45; cursor: default; }
+.pager__compte { font-size: 12.5px; color: var(--encre-douce); }
+
+@media (max-width: 900px) {
+  .fiche-pager { grid-template-columns: 1fr; gap: 14px; }
+  .rail-fiche {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 0 0 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--gris-ligne);
+  }
+  .rail-fiche__etape { width: auto; white-space: nowrap; padding: 7px 10px; font-size: 12.5px; }
+  .page-fiche { min-height: 0; }
+  .situation { grid-template-columns: 1fr; gap: 18px; }
+  .jauge-score { width: 160px; height: 160px; margin: 0 auto; }
+  .jauge-score__centre { width: 124px; height: 124px; }
+  .jauge-score__valeur { font-size: 34px; }
+  .situation__faits { grid-template-columns: 1fr; }
+  .fiche-barre .actions-fiche { width: 100%; }
+}
+
+@media print {
+  .rail-fiche, .pager, .fiche-barre .actions-fiche { display: none !important; }
+  .fiche-pager { display: block; }
+  .page-fiche {
+    display: block !important;
+    min-height: 0 !important;
+    break-before: page;
+    padding: 0;
+  }
+  .page-fiche:first-of-type { break-before: auto; }
+  .jauge-score { width: 130px; height: 130px; }
+  .jauge-score__centre { width: 104px; height: 104px; }
 }

@@ -33,11 +33,18 @@ statique. Le pipeline (pandas, scikit-learn) ne tourne pas sur Vercel — il
 dépasse la taille maximale d'une fonction — la base est donc construite avant
 l'envoi.
 
-Une seconde cible reste décrite par `render.yaml`, à la racine : service web
-Python, construction par `pip install -r requirements.txt && python -m app.charger`,
-démarrage par `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. L'offre gratuite
-de Render met l'instance en veille (première ouverture lente, environ 30 s) ; elle
-n'est pas utilisée pour la version en ligne actuelle.
+Vercel est l'unique cible d'hébergement : API, carte, fiches PDF et
+documentation d'API. Aucun autre service n'est nécessaire.
+
+**Déploiement depuis GitHub.** À la racine, `index.py` est le point d'entrée
+FastAPI attendu par Vercel, `vercel.json` décrit la fonction (fichiers inclus,
+durée maximale) et `requirements.txt` ses dépendances d'exécution. La base
+`backend/edualert.sqlite` est **versionnée** : sans elle, un déploiement lancé
+depuis GitHub n'aurait aucune donnée. Après une modification des CSV, la
+reconstruire (`cd backend && .venv/bin/python -m app.charger`) puis commiter.
+
+Le déploiement peut aussi se faire sans GitHub :
+`bash deploiement/vercel/deployer.sh` assemble le paquet et le publie.
 
 
 ## Reproduction
