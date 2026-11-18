@@ -1569,3 +1569,208 @@ a { color: var(--vert-moyen); }
 @media print {
   .panneau { display: none !important; }
 }
+
+/* ==========================================================================
+   13. Classement et fiche : la donnée en visuel plutôt qu'en phrase
+   ========================================================================== */
+
+/* --- Tendance en mini-courbe -------------------------------------------- */
+
+.mini-courbe { display: block; overflow: visible; }
+
+.mini-courbe__axe { stroke: #DCE3E6; stroke-width: 1; }
+
+.mini-courbe__ligne {
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mini-courbe__point { stroke: #FFF; stroke-width: 1; }
+
+/* --- Puces de facteurs --------------------------------------------------- */
+
+.puce-facteur {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 6px;
+  margin: 2px 4px 2px 0;
+  border: 1px solid #DCE3E6;
+  border-radius: 999px;
+  background: #F7FAF9;
+  font-size: 12px;
+  font-weight: 500;
+  color: #33413A;
+  white-space: nowrap;
+}
+
+.puce-facteur__icone {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  fill: currentColor;
+  opacity: 0.7;
+}
+
+/* --- Indicateurs en barres comparatives --------------------------------- */
+
+.indicateurs { margin: 8px 0 0; padding: 0; list-style: none; }
+
+.indicateur {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(0, 1.3fr) auto 54px;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--gris-ligne);
+}
+
+.indicateur__nom { font-size: 13px; color: var(--encre); }
+
+.indicateur__piste {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: #E9EEF0;
+}
+
+.indicateur__remplissage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+}
+
+.est-favorable { background: #3F8F6A; }
+.est-defavorable { background: #B3261E; }
+
+/* Le trait de la moyenne depasse la piste : il reste visible meme quand la
+   barre de la region le recouvre. */
+.indicateur__moyenne {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: #2B333B;
+}
+
+.indicateur__valeur {
+  font-size: 13px;
+  font-weight: 650;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.indicateur__valeur em {
+  display: block;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--encre-douce);
+}
+
+.indicateur__ecart { font-size: 12.5px; font-weight: 650; text-align: right; }
+
+/* --- Pistes d'action en cartes numerotees -------------------------------- */
+
+.actions-cartes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 9px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.action-carte {
+  display: flex;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--gris-ligne);
+  border-left: 3px solid var(--jaune-etoile);
+  border-radius: var(--rayon);
+  background: var(--blanc);
+}
+
+.action-carte__num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--vert-clair);
+  color: var(--vert-fonce);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.action-carte__corps { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.action-carte__titre {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--encre-douce);
+}
+
+.action-carte__texte { font-size: 13.5px; line-height: 1.45; }
+
+/* --- Ecrans etroits ------------------------------------------------------ */
+
+@media (max-width: 640px) {
+  .mini-courbe { width: 76px; height: 22px; }
+
+  .indicateur {
+    grid-template-columns: 1fr auto;
+    gap: 4px 10px;
+    padding: 9px 0;
+  }
+
+  .indicateur__nom { grid-column: 1; }
+  .indicateur__ecart { grid-column: 2; }
+  .indicateur__piste { grid-column: 1 / -1; }
+  .indicateur__valeur { grid-column: 1 / -1; text-align: left; }
+
+  .indicateur__valeur em { display: inline; margin-left: 6px; }
+
+  .puce-facteur { font-size: 11.5px; }
+}
+
+/* --- Fiche : en-tete a droite, actions en pleine largeur ------------------ */
+
+.fiche__entete-droite {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.fiche__entete-droite .actions-fiche { margin-top: 0; }
+
+.fiche__grille { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 30px; }
+
+.puces { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+
+.fiche__actions { margin-top: 8px; }
+
+.actions-cartes--large { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+
+@media (max-width: 1000px) {
+  .fiche__entete-droite { align-items: flex-start; }
+  .actions-cartes--large { grid-template-columns: 1fr; }
+}
+
+@media print {
+  .actions-cartes--large { grid-template-columns: 1fr 1fr; }
+}
+
+/* Le titre et le score s'alignent en haut : avec les boutons sous le score,
+   un alignement en bas faisait flotter le score au-dessus du titre. */
+.fiche__entete { align-items: flex-start; }

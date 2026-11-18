@@ -247,13 +247,13 @@
               <th scope="col" class="col-rang">#</th>
               <th scope="col">Région</th>
               <th scope="col" class="col-score">Score</th>
-              <th scope="col" class="col-evolution">Évolution</th>
+              <th scope="col" class="col-evolution">Tendance</th>
               <th scope="col" class="col-facteurs">Facteurs principaux</th>
               <th scope="col" class="col-action"><span class="hors-ecran">Ouvrir</span></th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(ligne, i) in classement" :key="ligne.region_code"
+            <tr v-for="(ligne, i) in classementCourbes" :key="ligne.region_code"
                 class="ligne-cliquable" tabindex="0"
                 @click="ouvrirFiche(ligne.region_code)"
                 @keydown.enter="ouvrirFiche(ligne.region_code)"
@@ -276,12 +276,23 @@
                 </div>
               </td>
               <td class="col-evolution">
-                <span class="evolution" :class="'evolution--' + evolution(ligne).sens">
-                  <span class="evolution__fleche" aria-hidden="true">{{ evolution(ligne).fleche }}</span>
-                  {{ evolution(ligne).mot }}
+                <svg v-if="ligne.courbe" class="mini-courbe" viewBox="0 0 96 26"
+                     width="96" height="26" role="img" :aria-label="ariaCourbe(ligne)">
+                  <line class="mini-courbe__axe" x1="3" y1="23" x2="93" y2="23"></line>
+                  <polyline class="mini-courbe__ligne" :points="ligne.courbe.points"
+                            :stroke="couleurNiveau(ligne.niveau)"></polyline>
+                  <circle class="mini-courbe__point" :cx="ligne.courbe.finX" :cy="ligne.courbe.finY"
+                          r="2.4" :fill="couleurNiveau(ligne.niveau)"></circle>
+                </svg>
+                <span v-else class="petit">—</span>
+              </td>
+              <td class="col-facteurs">
+                <span v-for="f in facteursCourts(ligne.facteurs)" :key="f.code" class="puce-facteur">
+                  <svg class="puce-facteur__icone" viewBox="0 0 16 16" aria-hidden="true">
+                    <path :d="f.icone"></path>
+                  </svg>{{ f.libelle }}
                 </span>
               </td>
-              <td class="petit col-facteurs">{{ premiersFacteurs(ligne.facteurs) }}</td>
               <td class="col-action" aria-hidden="true">→</td>
             </tr>
           </tbody>
@@ -306,13 +317,24 @@
             </p>
             <h2 class="fiche__titre" id="titre-fiche">{{ fiche.region_nom }}</h2>
           </div>
-          <div class="entete-score">
-            <span class="score-grand" :class="'texte--' + classeNiveau(ficheNiveau)">
-              {{ nombreFr(ficheScore, 1) }}<span class="sur-cent">/100</span>
-            </span>
-            <span class="pastille pastille--grande" :class="'pastille--' + classeNiveau(ficheNiveau)">
-              {{ libelleNiveau(ficheNiveau) }}
-            </span>
+          <div class="fiche__entete-droite">
+            <div class="entete-score">
+              <span class="score-grand" :class="'texte--' + classeNiveau(ficheNiveau)">
+                {{ nombreFr(ficheScore, 1) }}<span class="sur-cent">/100</span>
+              </span>
+              <span class="pastille pastille--grande" :class="'pastille--' + classeNiveau(ficheNiveau)">
+                {{ libelleNiveau(ficheNiveau) }}
+              </span>
+            </div>
+            <div class="actions-fiche">
+              <a class="bouton bouton--principal"
+                 :href="'../regions/' + fiche.region_code + '/fiche.pdf'">
+                Télécharger (PDF)
+              </a>
+              <button type="button" class="bouton bouton--secondaire" @click="imprimer">
+                Imprimer
+              </button>
+            </div>
           </div>
         </div>
 
@@ -328,9 +350,13 @@
         <div class="fiche__grille">
           <div class="fiche__colonne">
             <h3 class="titre-sous-section">Causes principales</h3>
-            <ul class="liste-facteurs">
-              <li v-for="code in facteursFiche" :key="code">{{ libelleFacteur(code) }}</li>
-            </ul>
+            <div class="puces">
+              <span v-for="f in causesCourtes" :key="f.code" class="puce-facteur">
+                <svg class="puce-facteur__icone" viewBox="0 0 16 16" aria-hidden="true">
+                  <path :d="f.icone"></path>
+                </svg>{{ f.libelle }}
+              </span>
+            </div>
 
             <h3 class="titre-sous-section">Évolution du score</h3>
             <div class="graphique">
@@ -354,61 +380,49 @@
                 Barre pleine : année observée. Contour en pointillés : prévision.
               </p>
             </div>
+          </div>
 
+          <div class="fiche__colonne">
             <h3 class="titre-sous-section">
               Indicateurs clés ({{ fiche.annee_indicateurs }})
             </h3>
-            <table class="tableau-indicateurs">
-              <caption class="hors-ecran">
-                Indicateurs de la région comparés à la moyenne des 13 régions
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Indicateur</th>
-                  <th scope="col" class="col-nombre">{{ fiche.region_nom }}</th>
-                  <th scope="col" class="col-nombre">Moyenne 13 régions</th>
-                  <th scope="col" class="col-nombre">Écart</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="ind in indicateursCompares" :key="ind.code">
-                  <td>{{ ind.libelle }}</td>
-                  <td class="col-nombre"><strong>{{ nombreFr(ind.valeur, 1) }}</strong></td>
-                  <td class="col-nombre col-moyenne">{{ nombreFr(ind.moyenne, 1) }}</td>
-                  <td class="col-nombre"
+            <ul class="indicateurs">
+              <li v-for="ind in indicateursCompares" :key="ind.code" class="indicateur">
+                <span class="indicateur__nom">{{ ind.libelle }}</span>
+                <span class="indicateur__piste">
+                  <span class="indicateur__remplissage"
+                        :class="ind.defavorable ? 'est-defavorable' : 'est-favorable'"
+                        :style="{ width: largeurIndicateur(ind) + '%' }"></span>
+                  <span class="indicateur__moyenne"
+                        :style="{ left: largeurMoyenne(ind) + '%' }"></span>
+                </span>
+                <span class="indicateur__valeur">
+                  {{ nombreFr(ind.valeur, 1) }}
+                  <em>moy. {{ nombreFr(ind.moyenne, 1) }}</em>
+                </span>
+                <span class="indicateur__ecart"
                       :class="ind.defavorable ? 'ecart-defavorable' : 'ecart-favorable'">
-                    {{ ind.ecart > 0 ? '+' : '' }}{{ nombreFr(ind.ecart, 1) }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                  {{ formatEcart(ind.ecart) }}
+                </span>
+              </li>
+            </ul>
             <p class="note" style="margin-top:6px">
-              L'écart compare la région à la moyenne des 13 régions pour la même année.
+              Barre : la région. Trait vertical : moyenne des 13 régions, même année.
             </p>
           </div>
+        </div>
 
-          <aside class="fiche__colonne fiche__colonne--actions">
-            <h3 class="titre-sous-section">Pistes d'action</h3>
-            <ul class="liste-actions">
-              <li v-for="a in fiche.recommandations" :key="a">{{ a }}</li>
-            </ul>
-            <template v-for="bloc in fiche.actions_par_facteur" :key="bloc.libelle">
-              <p class="note" style="margin:9px 0 3px"><strong>{{ bloc.libelle }}</strong></p>
-              <ul class="liste-actions">
-                <li v-for="a in bloc.actions" :key="a">{{ a }}</li>
-              </ul>
-            </template>
-
-            <div class="actions-fiche">
-              <a class="bouton bouton--principal"
-                 :href="'../regions/' + fiche.region_code + '/fiche.pdf'">
-                Télécharger la fiche (PDF)
-              </a>
-              <button type="button" class="bouton bouton--secondaire" @click="imprimer">
-                Imprimer
-              </button>
-            </div>
-          </aside>
+        <div class="fiche__actions">
+          <h3 class="titre-sous-section">Pistes d'action</h3>
+          <ul class="actions-cartes actions-cartes--large">
+            <li v-for="carte in actionsCartes" :key="carte.num" class="action-carte">
+              <span class="action-carte__num" aria-hidden="true">{{ carte.num }}</span>
+              <span class="action-carte__corps">
+                <span class="action-carte__titre">{{ carte.titre }}</span>
+                <span class="action-carte__texte">{{ carte.texte }}</span>
+              </span>
+            </li>
+          </ul>
         </div>
       </div>
     </section>

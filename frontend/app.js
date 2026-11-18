@@ -28,6 +28,27 @@ const LIBELLES_FACTEURS = {
   aucun_facteur_marquant: 'Aucun facteur marquant',
 };
 
+// libelle court + pictogramme : dans le classement, la cause tient dans une
+// puce au lieu d'une phrase.
+const FACTEURS_COURTS = {
+  ecart_admission_achevement: { libelle: 'Décrochage en cycle', icone: 'tendance' },
+  faible_achevement: { libelle: 'Achèvement faible', icone: 'tendance' },
+  recul_effectifs: { libelle: 'Effectifs en recul', icone: 'personnes' },
+  fermeture_ecoles: { libelle: 'Écoles fermées', icone: 'ecole' },
+  faible_scolarisation: { libelle: 'Peu scolarisés', icone: 'personnes' },
+  disparite_filles_garcons: { libelle: 'Écart filles-garçons', icone: 'parite' },
+  aucun_facteur_marquant: { libelle: 'Aucun facteur', icone: 'neutre' },
+};
+
+const ICONES_FACTEURS = {
+  ecole: 'M2 6.6 8 3l6 3.6V13H2V6.6zm3 1.6v3.2h2V8.2H5zm4 0v3.2h2V8.2H9z',
+  personnes: 'M6 7.4a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4zM1.8 13.2c0-2.1 1.9-3.4 4.2-3.4s4.2 1.3 4.2 3.4H1.8zm8.6-6.3a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6zM11 13.2c0-1.5.5-2.6 1.4-3.1 1.7.3 2.8 1.4 2.8 3.1H11z',
+  tendance: 'M1.4 12.1 6.2 7.3l2.3 2.3 5-5 1 1-6 6-2.3-2.3-3.8 3.8-1-1z',
+  parite: 'M7.4 2h1.2v12H7.4V2zM4.6 6.6 2 11.4h5.2L4.6 6.6zm6.8 0-2.6 4.8H14l-2.6-4.8z',
+  neutre: 'M8 3.2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6zm0 1.4a3.4 3.4 0 1 1 0 6.8 3.4 3.4 0 0 1 0-6.8z',
+};
+
+
 /* ==========================================================================
    Placement des etiquettes de region
    --------------------------------------------------------------------------
@@ -199,13 +220,15 @@ const PastilleAide = {
 // indique si une valeur elevee est une BONNE nouvelle. Sans cette precision,
 // la colonne « ecart » colorerait en vert un retard et en rouge une avance.
 const INDICATEURS_FICHE = [
-  { code: 'taux_achevement',         libelle: "Taux d'achèvement (%)",        hautBon: true },
-  { code: 'taux_brut_admission',     libelle: "Taux brut d'admission (%)",    hautBon: true },
-  { code: 'taux_brut_scolarisation', libelle: 'Taux brut de scolarisation (%)', hautBon: true },
-  { code: 'taux_reussite_cep',       libelle: 'Taux de réussite au CEP (%)',  hautBon: true },
-  { code: 'ecart_tba_tap',           libelle: 'Écart admission − achèvement', hautBon: false },
-  { code: 'eleves_par_ecole',        libelle: 'Élèves par école',             hautBon: false },
-  { code: 'ips_tap',                 libelle: "Indice de parité (achèvement)", hautBon: true },
+  { code: 'taux_achevement',         libelle: "Taux d'achèvement",        hautBon: true,  echelle: 100 },
+  { code: 'taux_brut_admission',     libelle: "Taux brut d'admission",    hautBon: true,  echelle: 100 },
+  { code: 'taux_brut_scolarisation', libelle: 'Taux brut de scolarisation', hautBon: true, echelle: 100 },
+  { code: 'taux_reussite_cep',       libelle: 'Taux de réussite au CEP',  hautBon: true,  echelle: 100 },
+  { code: 'ecart_tba_tap',           libelle: 'Écart admission − achèvement', hautBon: false, echelle: 100 },
+  // Ceux-ci n'ont pas de plafond naturel : l'echelle est relative a la plus
+  // grande des deux valeurs (region ou moyenne).
+  { code: 'eleves_par_ecole',        libelle: 'Élèves par école',         hautBon: false },
+  { code: 'ips_tap',                 libelle: 'Indice de parité',         hautBon: true,  echelle: 2 },
 ];
 
 const application = createApp({
@@ -217,6 +240,8 @@ const application = createApp({
       premiereAnnee: null,
       classement: [],
       classementPrecedent: [],
+      // Scores de toutes les regions et toutes les annees (mini-courbes).
+      historique: [],
       fiche: null,
       sante: {},
       modele: {},
@@ -285,6 +310,42 @@ const application = createApp({
       const compte = { faible: 0, modere: 0, critique: 0 };
       this.classement.forEach((r) => { compte[this.classeNiveau(r.niveau)] += 1; });
       return compte;
+    },
+
+    /** Toutes les annees d'une region, dans l'ordre. */
+    seriesParRegion() {
+      const par = {};
+      this.historique.forEach((h) => {
+        (par[h.region_code] = par[h.region_code] || []).push(h);
+      });
+      return par;
+    },
+
+    /** Causes de la fiche, en puces courtes avec pictogramme. */
+    causesCourtes() {
+      const actuel = this.fiche && this.fiche.risque_actuel;
+      return this.facteursCourts(actuel ? actuel.facteurs : '');
+    },
+
+    /** Le classement, enrichi de la mini-courbe de chaque region. */
+    classementCourbes() {
+      return this.classement.map((ligne) => ({
+        ...ligne,
+        courbe: this.miniCourbe(ligne.region_code),
+      }));
+    },
+
+    /** Pistes d'action a plat : une action par carte numerotee. */
+    actionsCartes() {
+      if (!this.fiche) return [];
+      const cartes = [];
+      (this.fiche.recommandations || []).forEach((texte) => {
+        cartes.push({ titre: 'Priorité régionale', texte });
+      });
+      (this.fiche.actions_par_facteur || []).forEach((bloc) => {
+        bloc.actions.forEach((texte) => cartes.push({ titre: bloc.libelle, texte }));
+      });
+      return cartes.map((carte, i) => ({ ...carte, num: i + 1 }));
     },
 
     /** Écart de score entre la région la plus et la moins exposée. */
@@ -460,25 +521,76 @@ const application = createApp({
       return { groupe: `le ${nom}`, verbe: 'est' };
     },
 
-    /** Deux premiers facteurs : avec un seul, la colonne ne distinguait rien. */
-    premiersFacteurs(facteurs) {
-      const codes = (facteurs || '').split(';').filter(Boolean).slice(0, 2);
-      if (!codes.length) return '—';
-      return codes.map((c) => this.libelleFacteur(c)).join(', ');
+    /** Deux puces courtes (libelle + pictogramme), pour le classement. */
+    facteursCourts(facteurs) {
+      return (facteurs || '').split(';').filter(Boolean).slice(0, 2).map((code) => {
+        const court = FACTEURS_COURTS[code]
+          || { libelle: code.replace(/_/g, ' '), icone: 'neutre' };
+        return {
+          code,
+          libelle: court.libelle,
+          icone: ICONES_FACTEURS[court.icone] || ICONES_FACTEURS.neutre,
+        };
+      });
     },
 
     /**
-     * Evolution du score par rapport a l'annee precedente.
-     * Le seuil de 1 point evite d'annoncer une « hausse » pour 0,2 point,
-     * qui n'a aucun sens a l'echelle d'un indice compose.
+     * Courbe des scores d'une region, en coordonnees SVG 96 x 26.
+     * L'echelle est commune a toutes les regions (0-100) : deux courbes se
+     * comparent donc d'une ligne a l'autre, au lieu d'etre recadrees chacune.
      */
-    evolution(ligne) {
-      const avant = this.classementPrecedent.find((r) => r.region_code === ligne.region_code);
-      if (!avant) return { sens: 'stable', fleche: '–', mot: 'n.d.' };
-      const delta = ligne.score - avant.score;
-      if (delta > 1) return { sens: 'hausse', fleche: '▲', mot: 'hausse' };
-      if (delta < -1) return { sens: 'baisse', fleche: '▼', mot: 'baisse' };
-      return { sens: 'stable', fleche: '=', mot: 'stable' };
+    miniCourbe(code) {
+      const serie = this.seriesParRegion[code] || [];
+      if (serie.length < 2) return null;
+      const largeur = 96;
+      const hauteur = 26;
+      const marge = 3;
+      const points = serie.map((h, i) => {
+        const x = marge + ((largeur - 2 * marge) * i) / (serie.length - 1);
+        const y = hauteur - marge
+          - (Math.max(0, Math.min(100, h.score)) / 100) * (hauteur - 2 * marge);
+        return { x: +x.toFixed(1), y: +y.toFixed(1) };
+      });
+      const fin = points[points.length - 1];
+      return {
+        points: points.map((p) => `${p.x},${p.y}`).join(' '),
+        finX: fin.x,
+        finY: fin.y,
+        debut: serie[0].annee,
+        debutScore: serie[0].score,
+        dernier: fin.annee,
+        dernierScore: fin.score,
+      };
+    },
+
+    ariaCourbe(ligne) {
+      const c = ligne.courbe;
+      if (!c) return '';
+      return `Score de ${this.nombreFr(c.debutScore, 1)} en ${c.debut} `
+        + `à ${this.nombreFr(c.dernierScore, 1)} en ${c.dernier}`;
+    },
+
+    /** Echelle commune aux deux barres (region et moyenne) d'un indicateur. */
+    echelleIndicateur(ind) {
+      const max = Math.max(Math.abs(ind.valeur || 0), Math.abs(ind.moyenne || 0));
+      // Un taux brut peut depasser 100 : l'echelle suit alors la valeur, sinon
+      // le trait de la moyenne sortirait de la piste.
+      const base = ind.echelle || 0;
+      return Math.max(base, max * 1.05) || 1;
+    },
+
+    /** Écart signé, sans « -0,0 » : un écart nul s'écrit 0,0. */
+    formatEcart(ecart) {
+      if (Math.abs(ecart) < 0.05) return '0,0';
+      return `${ecart > 0 ? '+' : ''}${this.nombreFr(ecart, 1)}`;
+    },
+
+    largeurIndicateur(ind) {
+      return Math.min(100, (Math.abs(ind.valeur) / this.echelleIndicateur(ind)) * 100);
+    },
+
+    largeurMoyenne(ind) {
+      return Math.min(100, (Math.abs(ind.moyenne) / this.echelleIndicateur(ind)) * 100);
     },
 
     /**
@@ -738,6 +850,14 @@ const application = createApp({
         this.sante = sante;
         this.annees = annees;
         this.geojson = geojson;
+
+        // Historique complet, pour les mini-courbes du classement. Son absence
+        // ne doit pas empecher la carte de s'afficher.
+        try {
+          this.historique = await this.json('../risque/historique');
+        } catch (e) {
+          this.historique = [];
+        }
         this.premiereAnnee = Math.min(...annees);
         this.anneePrevision = Math.max(...annees);
         // On ouvre sur la derniere annee OBSERVEE, pas sur la prevision : un
