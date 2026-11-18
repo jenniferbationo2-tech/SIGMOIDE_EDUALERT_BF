@@ -16,17 +16,12 @@
   <!-- 1. Bande tricolore + en-tête ------------------------------------ -->
   <div class="bande-enveloppe">
     <div class="bande-nationale" role="presentation"></div>
+    <span class="bande-nationale__etoile" aria-hidden="true">★</span>
   </div>
 
   <header class="entete">
     <div class="entete__interieur">
       <div class="entete__marque">
-        <svg class="drapeau" viewBox="0 0 90 60" role="img" aria-label="Drapeau du Burkina Faso">
-          <rect width="90" height="30" fill="#EF2B2D"></rect>
-          <rect y="30" width="90" height="30" fill="#009E49"></rect>
-          <path fill="#FCD116"
-                d="M45 18 47.82 26.12 56.41 26.29 49.57 31.48 52.05 39.71 45 34.8 37.95 39.71 40.43 31.48 33.59 26.29 42.18 26.12Z"></path>
-        </svg>
         <div>
           <h1>EduAlert BF</h1>
           <p class="entete__sous-titre">
@@ -387,95 +382,154 @@
               </span>
             </div>
 
-            <div class="titre-graphique">
-              <h3 class="titre-sous-section">Évolution du score</h3>
-              <div class="choix-graphique" role="group" aria-label="Type de graphique">
-                <button type="button" :aria-pressed="typeGraphique === 'barres' ? 'true' : 'false'"
-                        :class="{ 'est-actif': typeGraphique === 'barres' }"
-                        @click="choisirGraphique('barres')">Barres</button>
-                <button type="button" :aria-pressed="typeGraphique === 'courbe' ? 'true' : 'false'"
-                        :class="{ 'est-actif': typeGraphique === 'courbe' }"
-                        @click="choisirGraphique('courbe')">Courbe</button>
-                <button type="button" :aria-pressed="typeGraphique === 'tableau' ? 'true' : 'false'"
-                        :class="{ 'est-actif': typeGraphique === 'tableau' }"
-                        @click="choisirGraphique('tableau')">Tableau</button>
-              </div>
-            </div>
-
-            <div class="graphique">
-              <div class="barre-annees" v-if="typeGraphique === 'barres'">
-                <div class="annee-colonne" v-for="h in fiche.historique_risque" :key="h.annee">
-                  <span class="annee-score" :class="'texte--' + classeNiveau(h.niveau)">
-                    {{ Math.round(h.score) }}
-                  </span>
-                  <div class="annee-barre"
-                       :class="{ 'annee-barre--prevision': h.est_prevision,
-                                 'annee-barre--choisie': h.annee === annee }"
-                       :style="{ height: (h.score * 0.95) + '%',
-                                 background: couleurNiveau(h.niveau) }"></div>
-                  <span class="annee-etiquette"
-                        :class="{ 'annee-etiquette--choisie': h.annee === annee }">
-                    {{ String(h.annee).slice(2) }}
-                  </span>
+            <div class="graphique-cadre" ref="cadreGraphique" :class="{ 'est-agrandi': pleinEcran }">
+              <div class="graphique-entete">
+                <h3 class="titre-sous-section">Évolution du score</h3>
+                <div class="graphique-outils">
+                  <div class="choix-graphique" role="group" aria-label="Type de graphique">
+                    <button v-for="t in typesGraphique" :key="t.code" type="button"
+                            :aria-pressed="typeGraphique === t.code ? 'true' : 'false'"
+                            :class="{ 'est-actif': typeGraphique === t.code }"
+                            @click="choisirGraphique(t.code)">{{ t.libelle }}</button>
+                  </div>
+                  <button type="button" class="bouton-graphique" @click="basculerPleinEcran"
+                          :aria-pressed="pleinEcran ? 'true' : 'false'"
+                          :title="pleinEcran ? 'Quitter le plein écran' : 'Agrandir le graphique'">
+                    <svg class="bouton-graphique__icone" viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M2 6V2h4v1.6H3.6V6H2zm8-4h4v4h-1.6V3.6H10V2zM2 10h1.6v2.4H6V14H2v-4zm10.4 0H14v4h-4v-1.6h2.4V10z"></path>
+                    </svg>
+                    <span class="hors-ecran">Plein écran</span>
+                  </button>
+                  <button type="button" class="bouton-graphique" @click="imprimerGraphique"
+                          title="Imprimer le graphique seul">
+                    <svg class="bouton-graphique__icone" viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M4 1h8v3H4V1zm-2 4h12a1 1 0 0 1 1 1v5h-3v4H4v-4H1V6a1 1 0 0 1 1-1zm3 5v3h6V9H5z"></path>
+                    </svg>
+                    <span class="hors-ecran">Imprimer</span>
+                  </button>
+                  <div class="partage">
+                    <button type="button" class="bouton-graphique" @click.stop="basculerPartageGraphique"
+                            :aria-expanded="partageGraphiqueOuvert ? 'true' : 'false'"
+                            aria-haspopup="menu" title="Partager le graphique">
+                      <svg class="bouton-graphique__icone" viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M11.2 1.6a2.6 2.6 0 1 0 1.1 5.1L7.6 9.3a2.6 2.6 0 1 0 0 1.4l4.7 2.6a2.6 2.6 0 1 0 .6-1.1L8.2 9.6a2.6 2.6 0 0 0 0-1.4l4.7-2.6a2.6 2.6 0 0 0-1.7-4z"></path>
+                      </svg>
+                      <span class="hors-ecran">Partager</span>
+                    </button>
+                    <div v-if="partageGraphiqueOuvert" class="partage__menu" role="menu">
+                      <a class="partage__item" role="menuitem" :href="lienGmailGraphique"
+                         target="_blank" rel="noopener" @click="fermerPartageGraphique">Gmail</a>
+                      <a class="partage__item" role="menuitem" :href="lienOutlookGraphique"
+                         target="_blank" rel="noopener" @click="fermerPartageGraphique">Outlook</a>
+                      <button type="button" class="partage__item" role="menuitem"
+                              @click="copierLienGraphique">Copier le lien</button>
+                      <button v-if="typeGraphique !== 'tableau'" type="button" class="partage__item"
+                              role="menuitem" @click="telechargerGraphique">Télécharger l'image (PNG)</button>
+                      <p class="partage__etat" v-if="lienGraphiqueCopie" role="status">Lien copié.</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <svg v-else-if="typeGraphique === 'courbe' && courbeFiche" class="courbe-annees"
-                   viewBox="0 0 600 200" role="img"
-                   :aria-label="'Score de risque de ' + fiche.region_nom + ' par année'">
-                <g class="courbe-annees__grille">
-                  <line v-for="g in courbeFiche.grille" :key="g.v"
-                        :x1="courbeFiche.zone.x" :x2="courbeFiche.zone.x + courbeFiche.zone.largeur"
-                        :y1="g.y" :y2="g.y"></line>
-                  <text v-for="g in courbeFiche.grille" :key="'v' + g.v"
-                        :x="courbeFiche.zone.x - 7" :y="g.y + 3" text-anchor="end">{{ g.v }}</text>
-                </g>
-                <polyline class="courbe-annees__ligne" :points="courbeFiche.trace"></polyline>
-                <line v-if="courbeFiche.avantDernier" class="courbe-annees__prevision"
-                      :x1="courbeFiche.avantDernier.x" :y1="courbeFiche.avantDernier.y"
-                      :x2="courbeFiche.dernier.x" :y2="courbeFiche.dernier.y"></line>
-                <circle v-for="p in courbeFiche.points" :key="'p' + p.annee"
-                        :cx="p.x" :cy="p.y" r="3.6" :fill="couleurNiveau(p.niveau)"
-                        :stroke="p.prevision ? '#2B333B' : '#FFFFFF'" stroke-width="1.6">
-                  <title>{{ p.annee }} : {{ nombreFr(p.score, 1) }}</title>
-                </circle>
-                <g class="courbe-annees__annees">
-                  <text v-for="(p, i) in courbeFiche.points" :key="'a' + p.annee"
-                        v-show="i % 2 === 0 || i === courbeFiche.points.length - 1"
-                        :x="p.x" :y="196" text-anchor="middle">{{ String(p.annee).slice(2) }}</text>
-                </g>
-              </svg>
+              <div class="carte-graphique">
+                <svg v-if="typeGraphique !== 'tableau' && courbeFiche" class="graphique-svg"
+                     viewBox="0 0 600 220" role="img" :aria-label="ariaGraphique"
+                     @mouseleave="survol = null">
+                  <g class="graphique-svg__grille">
+                    <line v-for="g in courbeFiche.grille" :key="'g' + g.v"
+                          :x1="courbeFiche.zone.x" :x2="courbeFiche.zone.x + courbeFiche.zone.largeur"
+                          :y1="g.y" :y2="g.y"></line>
+                    <text v-for="g in courbeFiche.grille" :key="'t' + g.v"
+                          :x="courbeFiche.zone.x - 7" :y="g.y + 3" text-anchor="end">{{ g.v }}</text>
+                  </g>
 
-              <table v-else class="tableau-evolution">
-                <caption class="hors-ecran">Scores de la région par année</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Année</th>
-                    <th scope="col" class="col-nombre">Score</th>
-                    <th scope="col">Niveau</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="h in fiche.historique_risque" :key="h.annee">
-                    <td>
-                      {{ h.annee }}
-                      <span v-if="h.est_prevision" class="petit">prévision</span>
-                    </td>
-                    <td class="col-nombre"><strong>{{ nombreFr(h.score, 1) }}</strong></td>
-                    <td>
-                      <span class="pastille pastille--menue"
-                            :class="'pastille--' + classeNiveau(h.niveau)">
-                        {{ libelleNiveau(h.niveau) }}
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                  <path v-if="typeGraphique === 'aire'" class="graphique-svg__aire"
+                        :d="courbeFiche.aire" :fill="couleurNiveau(courbeFiche.dernier.niveau)"></path>
+
+                  <template v-if="typeGraphique === 'barres'">
+                    <rect v-for="p in courbeFiche.points" :key="'b' + p.annee"
+                          class="graphique-svg__barre"
+                          :class="{ 'est-survole': survol && survol.annee === p.annee }"
+                          :x="p.barreX" :y="p.y" :width="courbeFiche.largeurBarre"
+                          :height="courbeFiche.bas - p.y" rx="1.5"
+                          :fill="couleurNiveau(p.niveau)"></rect>
+                  </template>
+
+                  <polyline v-if="typeGraphique === 'courbe' || typeGraphique === 'aire'"
+                            class="graphique-svg__ligne" :points="courbeFiche.traceObservee"></polyline>
+
+                  <line v-if="courbeFiche.avantDernier && (typeGraphique === 'courbe' || typeGraphique === 'aire')"
+                        class="graphique-svg__prevision"
+                        :x1="courbeFiche.avantDernier.x" :y1="courbeFiche.avantDernier.y"
+                        :x2="courbeFiche.dernier.x" :y2="courbeFiche.dernier.y"></line>
+
+                  <template v-if="typeGraphique !== 'barres'">
+                    <circle v-for="p in courbeFiche.points" :key="'p' + p.annee"
+                            :cx="p.x" :cy="p.y" :r="typeGraphique === 'points' ? 4 : 3.4"
+                            :fill="couleurNiveau(p.niveau)"
+                            :stroke="p.prevision ? '#2B333B' : '#FFFFFF'" stroke-width="1.5"></circle>
+                  </template>
+
+                  <line v-if="survol" class="graphique-svg__curseur"
+                        :x1="survol.x" :x2="survol.x"
+                        :y1="courbeFiche.zone.y" :y2="courbeFiche.bas"></line>
+                  <circle v-if="survol" class="graphique-svg__point-actif"
+                          :cx="survol.x" :cy="survol.y" r="6"
+                          :fill="couleurNiveau(survol.niveau)"></circle>
+
+                  <g class="graphique-svg__annees">
+                    <text v-for="(p, i) in courbeFiche.points" :key="'a' + p.annee"
+                          v-show="i % 2 === 0 || i === courbeFiche.points.length - 1"
+                          :x="p.x" :y="206" text-anchor="middle">{{ String(p.annee).slice(2) }}</text>
+                  </g>
+
+                  <rect v-for="p in courbeFiche.points" :key="'z' + p.annee"
+                        class="graphique-svg__zone"
+                        :x="p.zoneX" :y="courbeFiche.zone.y"
+                        :width="p.zoneLargeur" :height="courbeFiche.zone.hauteur"
+                        @mouseenter="survolner(p)"></rect>
+                </svg>
+
+                <table v-else class="tableau-evolution">
+                  <caption class="hors-ecran">Scores de la région par année</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Année</th>
+                      <th scope="col" class="col-nombre">Score</th>
+                      <th scope="col">Niveau</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="h in fiche.historique_risque" :key="h.annee">
+                      <td>
+                        {{ h.annee }}
+                        <span v-if="h.est_prevision" class="petit">prévision</span>
+                      </td>
+                      <td class="col-nombre"><strong>{{ nombreFr(h.score, 1) }}</strong></td>
+                      <td>
+                        <span class="pastille pastille--menue"
+                              :class="'pastille--' + classeNiveau(h.niveau)">
+                          {{ libelleNiveau(h.niveau) }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div v-if="survol && typeGraphique !== 'tableau'" class="info-graphique"
+                     :style="positionInfo()">
+                  <strong>{{ survol.annee }}</strong>
+                  <span>{{ nombreFr(survol.score, 1) }} / 100 · {{ libelleNiveau(survol.niveau) }}</span>
+                </div>
+              </div>
 
               <p class="note-graphique" v-if="typeGraphique === 'barres'">
                 Barre pleine : année observée. Contour en pointillés : prévision.
               </p>
-              <p class="note-graphique" v-else-if="typeGraphique === 'courbe'">
+              <p class="note-graphique" v-else-if="typeGraphique === 'tableau'">
+                Le tableau donne les mêmes valeurs, année par année.
+              </p>
+              <p class="note-graphique" v-else>
                 Trait plein : année observée. Pointillés : prévision.
               </p>
             </div>

@@ -101,6 +101,11 @@ function pointEtiquette(anneau) {
     if (y > maxY) maxY = y;
   });
 
+  if (!Number.isFinite(minX) || !Number.isFinite(minY) || maxX <= minX || maxY <= minY) {
+    return [Number.isFinite(minX) ? (minX + maxX) / 2 : 0,
+            Number.isFinite(minY) ? (minY + maxY) / 2 : 0];
+  }
+
   const distanceAuBord = (x, y) => {
     let d = Infinity;
     for (let i = 0, j = anneau.length - 1; i < anneau.length; j = i++) {
@@ -109,7 +114,7 @@ function pointEtiquette(anneau) {
     return d;
   };
 
-  const essais = 22;
+  const essais = 16;
   let x = (minX + maxX) / 2;
   let y = (minY + maxY) / 2;
   let d = -1;
@@ -126,7 +131,9 @@ function pointEtiquette(anneau) {
 
   let pas = Math.max((maxX - minX) / essais, (maxY - minY) / essais) / 2;
   const directions = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [-1, 1], [1, -1]];
-  while (pas > 0.002) {
+  // Borne dure : sans elle, sur un polygone tres plat, le point peut osciller
+  // indefiniment autour du maximum et bloquer le navigateur (bug constate).
+  for (let iteration = 0; iteration < 40 && pas > 0.001; iteration += 1) {
     let ameliore = false;
     for (const [dx, dy] of directions) {
       const nx = x + (dx * pas);
@@ -137,7 +144,8 @@ function pointEtiquette(anneau) {
     }
     if (!ameliore) pas /= 2;
   }
-  return [x, y];
+  return [Number.isFinite(x) && Number.isFinite(y) ? x : (minX + maxX) / 2,
+          Number.isFinite(y) ? y : (minY + maxY) / 2];
 }
 
 
@@ -258,8 +266,20 @@ const application = createApp({
       onglet: 'carte',
       ongletPrecedent: 'carte',
       ordreNiveaux: ['critique', 'modere', 'faible'],
-      // Type de graphique choisi pour la courbe d'evolution (memorise).
+      // Types proposes : les quatre premiers dessinent le meme jeu de points,
+      // le tableau donne les valeurs brutes.
+      typesGraphique: [
+        { code: 'barres', libelle: 'Barres' },
+        { code: 'courbe', libelle: 'Courbe' },
+        { code: 'aire', libelle: 'Aire' },
+        { code: 'points', libelle: 'Points' },
+        { code: 'tableau', libelle: 'Tableau' },
+      ],
       typeGraphique: 'barres',
+      survol: null,
+      pleinEcran: false,
+      partageGraphiqueOuvert: false,
+      lienGraphiqueCopie: false,
       partageOuvert: false,
       lienCopie: false,
       carte: null,
@@ -353,39 +373,106 @@ const application = createApp({
     },
 
     /**
-     * Courbe d'evolution de la region, en coordonnees SVG 600 x 200.
-     * Meme echelle que la carte (0-100) : la lecture reste comparable.
+     * Géométrie du graphique d'évolution, en coordonnées SVG 600 x 220.
+     * Une seule géométrie sert aux quatre types : barres, courbe, aire et
+     * points se dessinent avec les mêmes points, donc le survol et l'export
+     * restent identiques quel que soit le choix.
      */
     courbeFiche() {
       const serie = (this.fiche && this.fiche.historique_risque) || [];
       if (!serie.length) return null;
-      const largeurTotale = 600;
-      const hauteurTotale = 200;
-      const zone = { x: 34, y: 12, largeur: largeurTotale - 34 - 14, hauteur: hauteurTotale - 12 - 30 };
+
+      const zone = { x: 34, y: 12, largeur: 600 - 34 - 16, hauteur: 220 - 12 - 44 };
+      const bas = zone.y + zone.hauteur;
+      const pas = zone.largeur / Math.max(1, serie.length - 1);
+      const largeurBarre = Math.min(30, pas * 0.55);
+
       const points = serie.map((h, i) => {
-        const x = zone.x + (zone.largeur * i) / Math.max(1, serie.length - 1);
-        const y = zone.y + zone.hauteur
-          - (Math.max(0, Math.min(100, h.score)) / 100) * zone.hauteur;
+        const x = zone.x + pas * i;
+        const y = bas - (Math.max(0, Math.min(100, h.score)) / 100) * zone.hauteur;
+        const demi = pas / 2;
         return {
           x: +x.toFixed(1),
           y: +y.toFixed(1),
+          barreX: +(x - largeurBarre / 2).toFixed(1),
+          zoneX: +(i === 0 ? zone.x : x - demi).toFixed(1),
+          zoneLargeur: +(i === 0 || i === serie.length - 1 ? demi : pas).toFixed(1),
           annee: h.annee,
           score: h.score,
           niveau: h.niveau,
           prevision: Boolean(h.est_prevision),
         };
       });
+
+      const aire = `M${points[0].x},${bas} `
+        + points.map((p) => `L${p.x},${p.y}`).join(' ')
+        + ` L${points[points.length - 1].x},${bas} Z`;
+
+      // La ligne pleine s'arrete avant la prevision : le dernier segment est
+      // dessine en pointilles par-dessus, sans trait plein en dessous.
+      const observee = points[points.length - 1].prevision ? points.slice(0, -1) : points;
+
       return {
         points,
         trace: points.map((p) => `${p.x},${p.y}`).join(' '),
+        traceObservee: observee.map((p) => `${p.x},${p.y}`).join(' '),
+        aire,
         dernier: points[points.length - 1],
         avantDernier: points.length > 1 ? points[points.length - 2] : null,
         zone,
+        bas,
+        pas,
+        largeurBarre,
         grille: [0, 25, 50, 75, 100].map((v) => ({
           v,
-          y: zone.y + zone.hauteur - (v / 100) * zone.hauteur,
+          y: bas - (v / 100) * zone.hauteur,
         })),
       };
+    },
+
+    phraseGraphique() {
+      if (!this.fiche || !this.courbeFiche) return '';
+      const premier = this.courbeFiche.points[0];
+      const dernier = this.courbeFiche.dernier;
+      return `${this.fiche.region_nom} · score de ${this.nombreFr(premier.score, 1)} en ${premier.annee} `
+        + `à ${this.nombreFr(dernier.score, 1)} en ${dernier.annee}`
+        + `${dernier.prevision ? ' (prévision)' : ''}. Source : DGESS / MENAPLN.`;
+    },
+
+    ariaGraphique() {
+      if (!this.fiche || !this.courbeFiche) return '';
+      const { premier, dernier } = { premier: this.courbeFiche.points[0], dernier: this.courbeFiche.dernier };
+      return `Évolution du score de ${this.fiche.region_nom} de `
+        + `${this.nombreFr(premier.score, 1)} en ${premier.annee} à `
+        + `${this.nombreFr(dernier.score, 1)} en ${dernier.annee}`;
+    },
+
+    /** Message de partage du graphique : la trajectoire, puis la fiche. */
+    messageGraphique() {
+      const nom = this.fiche ? this.fiche.region_nom : 'la région';
+      const sujet = `EduAlert BF — évolution du score, ${nom}`;
+      let corps = `Évolution du score de risque — ${nom}\n`;
+      if (this.courbeFiche) {
+        const premier = this.courbeFiche.points[0];
+        const dernier = this.courbeFiche.dernier;
+        corps += `De ${this.nombreFr(premier.score, 1)} en ${premier.annee} `
+          + `à ${this.nombreFr(dernier.score, 1)} en ${dernier.annee} `
+          + `(${this.libelleNiveau(dernier.niveau).toLowerCase()}).\n`;
+      }
+      corps += `\nFiche complète : ${this.lienPartage}`;
+      return { sujet, corps };
+    },
+
+    lienGmailGraphique() {
+      const { sujet, corps } = this.messageGraphique;
+      return 'https://mail.google.com/mail/?view=cm&fs=1'
+        + `&su=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+    },
+
+    lienOutlookGraphique() {
+      const { sujet, corps } = this.messageGraphique;
+      return 'https://outlook.live.com/mail/0/deeplink/compose'
+        + `?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
     },
 
     /** Adresse partagee : la fiche PDF si une region est ouverte, sinon la page. */
@@ -712,8 +799,118 @@ const application = createApp({
     },
 
     choisirGraphique(type) {
+      if (!this.typesGraphique.some((t) => t.code === type)) return;
       this.typeGraphique = type;
+      this.survol = null;
       try { localStorage.setItem('edualert-graphique', type); } catch (e) { /* navigation privee */ }
+    },
+
+    survolner(point) { this.survol = point; },
+
+    /** Position de l'infobulle de survol, rabattue aux deux bords. */
+    positionInfo() {
+      if (!this.survol) return '';
+      const decalage = this.survol.x < 90 ? '-12%' : (this.survol.x > 510 ? '-88%' : '-50%');
+      return `left:${(this.survol.x / 600) * 100}%;`
+        + `top:${(this.survol.y / 220) * 100}%;`
+        + `transform:translate(${decalage}, -118%);`;
+    },
+
+    /**
+     * Agrandit le graphique sur tout l'ecran. Un agrandissement CSS plutot que
+     * l'API Fullscreen : cette derniere est refusee hors geste utilisateur et
+     * n'existe pas sur iPhone pour un simple bloc.
+     */
+    basculerPleinEcran() {
+      this.pleinEcran = !this.pleinEcran;
+      document.body.classList.toggle('sans-defilement', this.pleinEcran);
+      if (this.carte) setTimeout(() => this.carte.invalidateSize({ pan: false }), 150);
+    },
+
+    /**
+     * Imprime le graphique seul. Une fenetre neuve ne contient que le titre,
+     * la phrase de lecture et le graphique ; la feuille de style de
+     * l'application est rechargee pour que le rendu soit identique.
+     */
+    imprimerGraphique() {
+      if (!this.fiche) return;
+      const cadre = this.$refs.cadreGraphique;
+      const corps = cadre && cadre.querySelector('.carte-graphique');
+      if (!corps) return;
+      const fenetre = window.open('', '_blank');
+      if (!fenetre) return;
+      const feuille = new URL('style.css', window.location.href).href;
+      const titre = `Évolution du score — ${this.fiche.region_nom}`;
+      fenetre.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8">
+        <title>${titre}</title><link rel="stylesheet" href="${feuille}">
+        <style>
+          body { background:#fff; padding:20px; }
+          .entete-graphique h1 { font-size:18px; color:#0B5E3A; margin:0 0 3px; }
+          .entete-graphique p { font-size:12px; color:#4A545E; margin:0 0 14px; }
+          .carte-graphique { max-width:1040px; }
+          .info-graphique, .partage { display:none !important; }
+          @page { size:A4 landscape; margin:12mm; }
+        </style></head><body>
+        <div class="entete-graphique"><h1>${titre}</h1><p>${this.phraseGraphique}</p></div>
+        <div class="carte-graphique">${corps.innerHTML}</div>
+        </body></html>`);
+      fenetre.document.close();
+      fenetre.focus();
+      setTimeout(() => { fenetre.print(); }, 400);
+    },
+
+    /** Exporte le graphique en PNG (2x) pour le joindre à un message. */
+    telechargerGraphique() {
+      const cadre = this.$refs.cadreGraphique;
+      const svg = cadre && cadre.querySelector('svg');
+      if (!svg) return;
+      const clone = svg.cloneNode(true);
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+      style.textContent = '.graphique-svg__grille line{stroke:#E3E9EC}'
+        + '.graphique-svg__grille text,.graphique-svg__annees text{fill:#5A6670;font-size:10px;font-family:Inter,Arial,sans-serif}'
+        + '.graphique-svg__ligne{fill:none;stroke:#0B5E3A;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}'
+        + '.graphique-svg__prevision{stroke:#2B333B;stroke-width:2;stroke-dasharray:5 4}'
+        + '.graphique-svg__aire{opacity:.16}.graphique-svg__barre.est-survole{stroke:#0E1B14;stroke-width:1.5}';
+      clone.insertBefore(style, clone.firstChild);
+      const donnees = new XMLSerializer().serializeToString(clone);
+      const url = URL.createObjectURL(new Blob([donnees], { type: 'image/svg+xml;charset=utf-8' }));
+      const image = new Image();
+      image.onload = () => {
+        const toile = document.createElement('canvas');
+        toile.width = 1200;
+        toile.height = 440;
+        const contexte = toile.getContext('2d');
+        contexte.fillStyle = '#FFFFFF';
+        contexte.fillRect(0, 0, toile.width, toile.height);
+        contexte.drawImage(image, 0, 0, toile.width, toile.height);
+        URL.revokeObjectURL(url);
+        toile.toBlob((png) => {
+          if (!png) return;
+          const lien = document.createElement('a');
+          lien.href = URL.createObjectURL(png);
+          lien.download = `edualert-${this.fiche.region_code}-evolution.png`;
+          lien.click();
+          setTimeout(() => URL.revokeObjectURL(lien.href), 2000);
+        }, 'image/png');
+      };
+      image.src = url;
+    },
+
+    basculerPartageGraphique() {
+      this.partageGraphiqueOuvert = !this.partageGraphiqueOuvert;
+      this.lienGraphiqueCopie = false;
+    },
+
+    fermerPartageGraphique() { this.partageGraphiqueOuvert = false; },
+
+    async copierLienGraphique() {
+      try {
+        await navigator.clipboard.writeText(this.lienPartage);
+        this.lienGraphiqueCopie = true;
+      } catch (e) {
+        this.lienGraphiqueCopie = false;
+      }
     },
 
     basculerPartage() {
@@ -896,25 +1093,38 @@ const application = createApp({
      * Trois tailles selon l'aire : une petite region recoit un nom seul, sans
      * score, pour ne pas deborder sur sa voisine.
      */
+    /**
+     * Ancre et taille d'etiquette d'une region, calculees une seule fois :
+     * la geometrie ne change pas d'une annee a l'autre, et polylabel est
+     * couteux.
+     */
+    ancreEtiquette(couche) {
+      const code = couche.feature.properties.region_code;
+      this._ancres = this._ancres || {};
+      if (this._ancres[code]) return this._ancres[code];
+
+      const geometrie = couche.feature.geometry;
+      const anneaux = geometrie.type === 'Polygon'
+        ? [geometrie.coordinates[0]]
+        : geometrie.coordinates.map((polygone) => polygone[0]);
+      let anneau = anneaux[0];
+      anneaux.forEach((candidat) => {
+        if (aireAnneau(candidat) > aireAnneau(anneau)) anneau = candidat;
+      });
+      const aire = aireAnneau(anneau);
+      const [lon, lat] = pointEtiquette(anneau);
+      const taille = aire > 1.2 ? 'grande' : (aire > 0.4 ? 'moyenne' : 'petite');
+      this._ancres[code] = { lon, lat, aire, taille };
+      return this._ancres[code];
+    },
+
     poserEtiquettes(parCode) {
       this.coucheRegions.eachLayer((couche) => {
         const code = couche.feature.properties.region_code;
         const ligne = parCode[code];
         const nom = (ligne && ligne.region_nom) || couche.feature.properties.region_nom || code;
 
-        const geometrie = couche.feature.geometry;
-        const anneaux = geometrie.type === 'Polygon'
-          ? [geometrie.coordinates[0]]
-          : geometrie.coordinates.map((polygone) => polygone[0]);
-
-        let anneau = anneaux[0];
-        anneaux.forEach((candidat) => {
-          if (aireAnneau(candidat) > aireAnneau(anneau)) anneau = candidat;
-        });
-        const aire = aireAnneau(anneau);
-        const [lon, lat] = pointEtiquette(anneau);
-
-        const taille = aire > 1.2 ? 'grande' : (aire > 0.4 ? 'moyenne' : 'petite');
+        const { lon, lat, taille } = this.ancreEtiquette(couche);
         const score = ligne ? Math.round(ligne.score) : null;
         const contenu = `<span class="etiquette-region__nom">${nom}</span>`
           + (score !== null && taille !== 'petite'
@@ -946,16 +1156,6 @@ const application = createApp({
       });
     },
 
-    /** Re-pose les etiquettes apres un changement de taille de la carte. */
-    replacerEtiquettes() {
-      if (!this.carte || !this.coucheRegions) return;
-      this.etiquettes.forEach((e) => this.carte.removeLayer(e));
-      this.etiquettes = [];
-      const parCode = {};
-      this.classement.forEach((r) => { parCode[r.region_code] = r; });
-      this.poserEtiquettes(parCode);
-    },
-
     async monte() {
       try {
         const [sante, annees, geojson] = await Promise.all([
@@ -969,7 +1169,7 @@ const application = createApp({
 
         try {
           const choisi = localStorage.getItem('edualert-graphique');
-          if (['barres', 'courbe', 'tableau'].includes(choisi)) this.typeGraphique = choisi;
+          if (this.typesGraphique.some((t) => t.code === choisi)) this.typeGraphique = choisi;
         } catch (e) { /* navigation privee : on garde les barres */ }
 
         // Historique complet, pour les mini-courbes du classement. Son absence
@@ -1017,26 +1217,11 @@ const application = createApp({
           if (!this.carte) return;
           this.carte.invalidateSize({ pan: false });
           this.cadrer();
-          this.replacerEtiquettes();
         };
         this.$nextTick(recaler);
         window.addEventListener('resize', recaler);
         if (document.fonts && document.fonts.ready) document.fonts.ready.then(recaler);
 
-        // Une variation de la taille du cadre (en-tete, zoom navigateur,
-        // barre d'adresse mobile) laissait la carte rognee : on l'observe.
-        if ('ResizeObserver' in window) {
-          let derniere = '';
-          this._tailleObserver = new ResizeObserver(() => {
-            const el = document.getElementById('carte');
-            if (!el) return;
-            const taille = `${el.clientWidth}x${el.clientHeight}`;
-            if (taille === derniere) return;
-            derniere = taille;
-            recaler();
-          });
-          this._tailleObserver.observe(document.getElementById('carte'));
-        }
       } catch (e) {
         this.chargement = false;
         this.erreur = 'Impossible de contacter le service. Vérifiez qu\'il est démarré '
@@ -1050,13 +1235,19 @@ const application = createApp({
 
     // Le menu de partage se ferme au clic exterieur et sur Echap.
     document.addEventListener('click', (evenement) => {
-      if (this.partageOuvert && !evenement.target.closest('.partage')) {
+      if (!evenement.target.closest('.partage')) {
         this.partageOuvert = false;
+        this.partageGraphiqueOuvert = false;
       }
     });
     document.addEventListener('keydown', (evenement) => {
-      if (evenement.key === 'Escape') this.partageOuvert = false;
+      if (evenement.key === 'Escape') {
+        this.partageOuvert = false;
+        this.partageGraphiqueOuvert = false;
+        if (this.pleinEcran) this.basculerPleinEcran();
+      }
     });
+
   },
 });
 application.component('pastille-aide', PastilleAide);

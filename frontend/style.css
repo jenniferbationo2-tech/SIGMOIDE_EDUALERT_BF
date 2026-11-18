@@ -86,13 +86,25 @@ a { color: var(--vert-moyen); }
 .bande-nationale {
   display: flex;
   align-items: center;
-  height: 6px;
-  /* Deux bandes horizontales, comme le drapeau : rouge en haut, vert en bas. */
-  background: linear-gradient(to bottom,
+  /* Bandeau national : rouge a gauche, vert a droite, etoile a la jonction.
+     Assez epais pour etre lu comme un drapeau, pas comme un filet. */
+  height: 16px;
+  background: linear-gradient(to right,
     var(--rouge-drapeau) 0 50%, var(--vert-drapeau) 50% 100%);
 }
 
 .bande-enveloppe { position: relative; }
+
+.bande-nationale__etoile {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--jaune-etoile);
+  font-size: 21px;
+  line-height: 1;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.35);
+}
 
 .entete {
   background: var(--vert-fonce);
@@ -939,8 +951,9 @@ a { color: var(--vert-moyen); }
 
 .leaflet-container { font-family: inherit; background: transparent !important; }
 
-/* Ombre portee sur l'ensemble du trace, pas sur chaque region. */
-.leaflet-overlay-pane svg { filter: drop-shadow(0 12px 20px rgba(11, 58, 38, 0.16)); }
+/* Pas de filtre drop-shadow sur le trace : sur une carte de cette taille, le
+   navigateur doit rastériser tout le SVG a chaque repeint, ce qui bloque le
+   rendu sur les machines modestes. Le cadre porte deja l'ombre. */
 
 /* Etiquettes posees sur la carte : nom + score, halo blanc pour rester
    lisibles sur les trois couleurs de risque. */
@@ -1889,14 +1902,54 @@ a { color: var(--vert-moyen); }
 .choix-graphique button:hover { background: var(--vert-clair); color: var(--vert-fonce); }
 .choix-graphique button.est-actif { background: var(--vert-fonce); color: var(--blanc); }
 
-/* --- Courbe -------------------------------------------------------------- */
+/* --- Graphique (barres, courbe, aire, points) --------------------------- */
 
-.courbe-annees { display: block; width: 100%; height: auto; margin-top: 8px; }
+.graphique-cadre { background: var(--blanc); }
 
-.courbe-annees__grille line { stroke: #E3E9EC; stroke-width: 1; }
-.courbe-annees__grille text { fill: #6B7780; font-size: 10px; }
+.graphique-entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 18px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--gris-ligne);
+}
 
-.courbe-annees__ligne {
+.graphique-entete .titre-sous-section { margin: 0; padding: 0; border-bottom: 0; }
+
+.graphique-outils { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+.bouton-graphique {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--gris-ligne);
+  border-radius: var(--rayon);
+  background: var(--blanc);
+  color: var(--encre-douce);
+  cursor: pointer;
+}
+
+.bouton-graphique:hover {
+  border-color: var(--vert-moyen);
+  background: var(--vert-clair);
+  color: var(--vert-fonce);
+}
+
+.bouton-graphique__icone { width: 13px; height: 13px; fill: currentColor; }
+
+.carte-graphique { position: relative; margin-top: 10px; }
+
+.graphique-svg { display: block; width: 100%; height: auto; }
+.graphique-svg__grille line { stroke: #E3E9EC; stroke-width: 1; }
+.graphique-svg__grille text { fill: #6B7780; font-size: 10px; }
+.graphique-svg__annees text { fill: #4A545E; font-size: 10px; }
+
+.graphique-svg__ligne {
   fill: none;
   stroke: var(--vert-fonce);
   stroke-width: 2;
@@ -1904,15 +1957,58 @@ a { color: var(--vert-moyen); }
   stroke-linejoin: round;
 }
 
-/* Le dernier segment (prevolution) est en pointilles : la prevision reste
-   distincte d'une observation, aussi sur la courbe. */
-.courbe-annees__prevision {
-  stroke: #2B333B;
-  stroke-width: 2;
-  stroke-dasharray: 5 4;
+/* Le dernier segment (prévision) reste en pointillés, quel que soit le type. */
+.graphique-svg__prevision { stroke: #2B333B; stroke-width: 2; stroke-dasharray: 5 4; }
+
+.graphique-svg__aire { opacity: 0.16; }
+
+.graphique-svg__barre { transition: opacity 0.15s ease; }
+.graphique-svg__barre.est-survole { stroke: #0E1B14; stroke-width: 1.5; }
+
+.graphique-svg__curseur { stroke: #2B333B; stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.55; }
+.graphique-svg__point-actif { stroke: #FFF; stroke-width: 2; }
+
+/* Zones de survol transparentes : le curseur suit l'année la plus proche. */
+.graphique-svg__zone { fill: transparent; cursor: crosshair; }
+
+.info-graphique {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -118%);
+  padding: 6px 9px;
+  border-radius: 5px;
+  background: #0E1B14;
+  color: var(--blanc);
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
 }
 
-.courbe-annees__annees text { fill: #4A545E; font-size: 10px; }
+.info-graphique strong { display: block; font-size: 13px; }
+.info-graphique span { font-size: 11.5px; opacity: 0.85; }
+
+/* --- Agrandissement plein écran ------------------------------------------ */
+
+.graphique-cadre.est-agrandi {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 28px 26px;
+  background: var(--blanc);
+  overflow: auto;
+}
+
+.graphique-cadre.est-agrandi .graphique-entete { margin-top: 0; }
+.graphique-cadre.est-agrandi .carte-graphique { flex: 1; display: flex; align-items: center; }
+.graphique-cadre.est-agrandi .graphique-svg { max-height: calc(100vh - 190px); }
+.graphique-cadre.est-agrandi .tableau-evolution { font-size: 15px; }
+.graphique-cadre.est-agrandi .info-graphique { font-size: 14px; }
+
+body.sans-defilement { overflow: hidden; }
 
 /* --- Tableau d'evolution ------------------------------------------------- */
 
@@ -1947,4 +2043,19 @@ a { color: var(--vert-moyen); }
 @media print {
   .partage, .bouton-partage, .choix-graphique { display: none !important; }
   .drapeau { box-shadow: none; }
+}
+
+@media (max-width: 640px) {
+  .graphique-outils { gap: 4px; }
+  .bouton-graphique { width: 28px; height: 26px; }
+  .choix-graphique button { padding: 4px 7px; font-size: 11.5px; }
+}
+
+@media print {
+  .graphique-outils { display: none !important; }
+}
+
+@media print {
+  .graphique-cadre.est-agrandi { position: static !important; padding: 0; }
+  body.sans-defilement { overflow: visible; }
 }
