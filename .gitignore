@@ -9,6 +9,9 @@ node_modules/
 dist/
 # DB / local
 *.sqlite
+# La base compilee est versionnee : sans elle, un deploiement depuis
+# GitHub (Vercel) n'aurait aucune donnee a servir.
+!backend/edualert.sqlite
 *.db
 # OS / IDE
 .DS_Store

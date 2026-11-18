@@ -36,6 +36,16 @@ l'envoi.
 Vercel est l'unique cible d'hébergement : API, carte, fiches PDF et
 documentation d'API. Aucun autre service n'est nécessaire.
 
+**Déploiement depuis GitHub.** À la racine, `index.py` est le point d'entrée
+FastAPI attendu par Vercel, `vercel.json` décrit la fonction (fichiers inclus,
+durée maximale) et `requirements.txt` ses dépendances d'exécution. La base
+`backend/edualert.sqlite` est **versionnée** : sans elle, un déploiement lancé
+depuis GitHub n'aurait aucune donnée. Après une modification des CSV, la
+reconstruire (`cd backend && .venv/bin/python -m app.charger`) puis commiter.
+
+Le déploiement peut aussi se faire sans GitHub :
+`bash deploiement/vercel/deployer.sh` assemble le paquet et le publie.
+
 
 ## Reproduction
 
