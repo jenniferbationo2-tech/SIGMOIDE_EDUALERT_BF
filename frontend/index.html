@@ -324,64 +324,113 @@
       </div>
     </section>
 
-    <!-- 7. Vue FICHE ---------------------------------------------------- -->
+    <!-- 7. Vue FICHE : cinq pages navigables ----------------------------- -->
     <section class="vue-fiche" v-if="fiche" aria-labelledby="titre-fiche">
-      <button type="button" class="bouton-retour" @click="fermerFiche">
-        <span aria-hidden="true">←</span> Retour
-      </button>
+      <div class="fiche-barre">
+        <button type="button" class="bouton-retour" @click="fermerFiche">
+          <span aria-hidden="true">←</span> Retour
+        </button>
+        <div class="fiche-barre__identite">
+          <p class="fiche__sur-titre">
+            Fiche région · {{ fiche.risque_actuel ? fiche.risque_actuel.annee : annee }}
+            <template v-if="fiche.risque_actuel && fiche.risque_actuel.est_prevision">
+              (prévision)
+            </template>
+          </p>
+          <h2 class="fiche__titre" id="titre-fiche">{{ fiche.region_nom }}</h2>
+        </div>
+        <div class="actions-fiche">
+          <a class="bouton bouton--principal"
+             :href="'../regions/' + fiche.region_code + '/fiche.pdf'" download>
+            Télécharger (PDF)
+          </a>
+          <button type="button" class="bouton bouton--secondaire" @click="imprimer">
+            Imprimer
+          </button>
+        </div>
+      </div>
 
-      <div class="bloc fiche">
-        <div class="fiche__entete">
-          <div>
-            <p class="fiche__sur-titre">
-              Fiche région · {{ fiche.risque_actuel ? fiche.risque_actuel.annee : annee }}
-              <template v-if="fiche.risque_actuel && fiche.risque_actuel.est_prevision">
-                (prévision)
-              </template>
+      <div class="fiche-pager">
+        <nav class="rail-fiche" aria-label="Pages de la fiche">
+          <button v-for="(p, i) in pagesFiche" :key="p.code" type="button"
+                  class="rail-fiche__etape" :class="{ 'est-actif': pageFiche === i }"
+                  :aria-current="pageFiche === i ? 'step' : null"
+                  @click="allerPage(i)">
+            <span class="rail-fiche__num">{{ i + 1 }}</span>
+            <span class="rail-fiche__titre">{{ p.titre }}</span>
+          </button>
+        </nav>
+
+        <div class="fiche-pages">
+
+          <!-- Page 1 : situation -->
+          <section class="page-fiche" v-show="pageFiche === 0" aria-label="Situation">
+            <div class="situation">
+              <div class="jauge-score"
+                   :style="{ background: 'conic-gradient(' + couleurNiveau(ficheNiveau) + ' '
+                             + Math.min(100, ficheScore) + '%, #E9EEF0 0)' }">
+                <div class="jauge-score__centre">
+                  <span class="jauge-score__valeur" :class="'texte--' + classeNiveau(ficheNiveau)">
+                    {{ nombreFr(ficheScore, 1) }}
+                  </span>
+                  <span class="jauge-score__unite">sur 100</span>
+                </div>
+              </div>
+
+              <div class="situation__droite">
+                <span class="pastille pastille--grande"
+                      :class="'pastille--' + classeNiveau(ficheNiveau)">
+                  {{ libelleNiveau(ficheNiveau) }}
+                </span>
+                <p class="situation__phrase">{{ phraseSynthese }}</p>
+                <div class="situation__faits">
+                  <div class="fait-carte">
+                    <span class="fait-carte__valeur">#{{ rangFiche }}</span>
+                    <span class="fait-carte__libelle">sur 13 régions</span>
+                  </div>
+                  <div class="fait-carte">
+                    <span class="fait-carte__valeur">{{ ecartMoyenneSigne }}</span>
+                    <span class="fait-carte__libelle">points vs moyenne</span>
+                  </div>
+                  <div class="fait-carte">
+                    <span class="fait-carte__valeur">
+                      {{ nbIndicateursDefavorables }} / {{ indicateursCompares.length }}
+                    </span>
+                    <span class="fait-carte__libelle">indicateurs en retard</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="encadre-info" v-if="incertitudeFiche">
+              Intervalle probable : <strong>{{ nombreFr(incertitudeFiche.score_bas, 1) }}</strong>
+              à <strong>{{ nombreFr(incertitudeFiche.score_haut, 1) }}</strong> ·
+              probabilité d'être critique :
+              <strong>{{ nombreFr(incertitudeFiche.proba_critique * 100, 0) }} %</strong>
+            </div>
+          </section>
+
+          <!-- Page 2 : causes -->
+          <section class="page-fiche" v-show="pageFiche === 1" aria-label="Causes">
+            <h3 class="page-fiche__titre">Ce qui pèse sur cette région</h3>
+            <p class="page-fiche__chapeau">
+              Les facteurs qui font monter le score, du plus lourd au plus léger.
             </p>
-            <h2 class="fiche__titre" id="titre-fiche">{{ fiche.region_nom }}</h2>
-          </div>
-          <div class="fiche__entete-droite">
-            <div class="entete-score">
-              <span class="score-grand" :class="'texte--' + classeNiveau(ficheNiveau)">
-                {{ nombreFr(ficheScore, 1) }}<span class="sur-cent">/100</span>
-              </span>
-              <span class="pastille pastille--grande" :class="'pastille--' + classeNiveau(ficheNiveau)">
-                {{ libelleNiveau(ficheNiveau) }}
-              </span>
-            </div>
-            <div class="actions-fiche">
-              <a class="bouton bouton--principal"
-                 :href="'../regions/' + fiche.region_code + '/fiche.pdf'" download>
-                Télécharger (PDF)
-              </a>
-              <button type="button" class="bouton bouton--secondaire" @click="imprimer">
-                Imprimer
-              </button>
-            </div>
-          </div>
-        </div>
+            <ul class="causes-cartes">
+              <li v-for="c in causesDetail" :key="c.code" class="cause-carte">
+                <span class="cause-carte__icone" aria-hidden="true">
+                  <svg viewBox="0 0 16 16"><path :d="c.icone"></path></svg>
+                </span>
+                <span class="cause-carte__corps">
+                  <span class="cause-carte__titre">{{ c.libelle }}</span>
+                  <span class="cause-carte__texte">{{ c.explication }}</span>
+                </span>
+              </li>
+            </ul>
+          </section>
 
-        <p class="synthese">{{ phraseSynthese }}</p>
-
-        <div class="encadre-info" v-if="incertitudeFiche">
-          Intervalle probable : <strong>{{ nombreFr(incertitudeFiche.score_bas, 1) }}</strong>
-          à <strong>{{ nombreFr(incertitudeFiche.score_haut, 1) }}</strong> ·
-          probabilité d'être critique :
-          <strong>{{ nombreFr(incertitudeFiche.proba_critique * 100, 0) }} %</strong>
-        </div>
-
-        <div class="fiche__grille">
-          <div class="fiche__colonne">
-            <h3 class="titre-sous-section">Causes principales</h3>
-            <div class="puces">
-              <span v-for="f in causesCourtes" :key="f.code" class="puce-facteur">
-                <svg class="puce-facteur__icone" viewBox="0 0 16 16" aria-hidden="true">
-                  <path :d="f.icone"></path>
-                </svg>{{ f.libelle }}
-              </span>
-            </div>
-
+          <!-- Page 3 : evolution -->
+          <section class="page-fiche" v-show="pageFiche === 2" aria-label="Évolution">
             <div class="graphique-cadre" ref="cadreGraphique" :class="{ 'est-agrandi': pleinEcran }">
               <div class="graphique-entete">
                 <h3 class="titre-sous-section">Évolution du score</h3>
@@ -533,12 +582,16 @@
                 Trait plein : année observée. Pointillés : prévision.
               </p>
             </div>
-          </div>
+          </section>
 
-          <div class="fiche__colonne">
-            <h3 class="titre-sous-section">
+          <!-- Page 4 : indicateurs -->
+          <section class="page-fiche" v-show="pageFiche === 3" aria-label="Indicateurs">
+            <h3 class="page-fiche__titre">
               Indicateurs clés ({{ fiche.annee_indicateurs }})
             </h3>
+            <p class="page-fiche__chapeau">
+              Barre colorée : la région. Trait noir : moyenne des 13 régions.
+            </p>
             <ul class="indicateurs">
               <li v-for="ind in indicateursCompares" :key="ind.code" class="indicateur">
                 <span class="indicateur__nom">{{ ind.libelle }}</span>
@@ -559,15 +612,15 @@
                 </span>
               </li>
             </ul>
-            <p class="note" style="margin-top:6px">
-              Barre : la région. Trait vertical : moyenne des 13 régions, même année.
-            </p>
-          </div>
-        </div>
+          </section>
 
-        <div class="fiche__actions">
-          <h3 class="titre-sous-section">Pistes d'action</h3>
-          <ul class="actions-cartes actions-cartes--large">
+          <!-- Page 5 : actions -->
+          <section class="page-fiche" v-show="pageFiche === 4" aria-label="Actions">
+            <h3 class="page-fiche__titre">Que faire</h3>
+            <p class="page-fiche__chapeau">
+              Une action par carte : d'abord les priorités de la région, puis les leviers par cause.
+            </p>
+            <ul class="actions-cartes actions-cartes--large">
             <li v-for="carte in actionsCartes" :key="carte.num" class="action-carte">
               <span class="action-carte__num" aria-hidden="true">{{ carte.num }}</span>
               <span class="action-carte__corps">
@@ -576,6 +629,19 @@
               </span>
             </li>
           </ul>
+          </section>
+
+          <div class="pager">
+            <button type="button" class="pager__bouton"
+                    :disabled="pageFiche === 0" @click="pagePrecedente">
+              <span aria-hidden="true">←</span> Précédent
+            </button>
+            <span class="pager__compte">{{ pageFiche + 1 }} / {{ pagesFiche.length }}</span>
+            <button type="button" class="pager__bouton"
+                    :disabled="pageFiche === pagesFiche.length - 1" @click="pageSuivante">
+              Suivant <span aria-hidden="true">→</span>
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -632,10 +698,12 @@
 
   <!-- 10. Pied de page --------------------------------------------------- -->
   <footer class="pied">
+    <div class="bande-enveloppe bande-enveloppe--pied">
+      <div class="bande-nationale" role="presentation"></div>
+      <span class="bande-nationale__etoile" aria-hidden="true">★</span>
+    </div>
     <div class="pied__interieur">
       <p><strong>Sources</strong> · DGESS / MENAPLN, 2016-2025 · contours OCHA / IGB (COD-AB)</p>
-      <p><strong>Édition 2026</strong> · outil d'aide à la décision ; il ne se
-         substitue pas aux statistiques officielles et n'engage aucune administration.</p>
       <p class="pied__liens">
         Équipe AB7C-938F-79BB
         <span aria-hidden="true">·</span>

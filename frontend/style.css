@@ -88,7 +88,7 @@ a { color: var(--vert-moyen); }
   align-items: center;
   /* Bandeau national : rouge a gauche, vert a droite, etoile a la jonction.
      Assez epais pour etre lu comme un drapeau, pas comme un filet. */
-  height: 16px;
+  height: 22px;
   background: linear-gradient(to right,
     var(--rouge-drapeau) 0 50%, var(--vert-drapeau) 50% 100%);
 }
@@ -101,7 +101,7 @@ a { color: var(--vert-moyen); }
   top: 50%;
   transform: translate(-50%, -50%);
   color: var(--jaune-etoile);
-  font-size: 21px;
+  font-size: 27px;
   line-height: 1;
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.35);
 }
@@ -2058,4 +2058,236 @@ body.sans-defilement { overflow: hidden; }
 @media print {
   .graphique-cadre.est-agrandi { position: static !important; padding: 0; }
   body.sans-defilement { overflow: visible; }
+}
+
+/* ==========================================================================
+   15. Fiche en pages : une information par ecran, rail de navigation
+   ========================================================================== */
+
+.bande-enveloppe--pied { margin-bottom: 14px; }
+
+.fiche-barre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  margin-bottom: 12px;
+}
+
+.fiche-barre .bouton-retour { margin-bottom: 0; }
+.fiche-barre__identite { flex: 1; min-width: 220px; }
+.fiche-barre .fiche__titre { font-size: 24px; }
+.fiche-barre .actions-fiche { margin-top: 0; }
+
+.fiche-pager {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 26px;
+  align-items: start;
+}
+
+.rail-fiche {
+  position: sticky;
+  top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-right: 12px;
+  border-right: 1px solid var(--gris-ligne);
+}
+
+.rail-fiche__etape {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--rayon);
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--encre-douce);
+  text-align: left;
+  cursor: pointer;
+}
+
+.rail-fiche__etape:hover { background: var(--vert-clair); color: var(--vert-fonce); }
+.rail-fiche__etape.est-actif { background: var(--vert-fonce); color: var(--blanc); }
+
+.rail-fiche__num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #E8F0EC;
+  color: var(--vert-fonce);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.rail-fiche__etape.est-actif .rail-fiche__num { background: var(--jaune-etoile); color: #3A2E00; }
+
+.fiche-pages { min-width: 0; }
+
+/* Chaque page occupe l'ecran : le lecteur ne voit qu'une idee a la fois. */
+.page-fiche {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: calc(100vh - 265px);
+  padding: 4px 2px 8px;
+}
+
+.page-fiche__titre { font-size: 21px; color: var(--vert-fonce); }
+.page-fiche__chapeau { margin: 0; font-size: 13.5px; color: var(--encre-douce); }
+
+/* --- Page 1 : situation --- */
+
+.situation {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 30px;
+  align-items: center;
+}
+
+.jauge-score { display: grid; place-items: center; width: 190px; height: 190px; border-radius: 50%; }
+
+.jauge-score__centre {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 148px;
+  height: 148px;
+  border-radius: 50%;
+  background: var(--blanc);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.jauge-score__valeur { font-size: 40px; font-weight: 750; line-height: 1; letter-spacing: -0.02em; }
+.jauge-score__unite { margin-top: 4px; font-size: 12px; color: var(--encre-douce); }
+
+.situation__droite { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.situation__phrase { margin: 0; max-width: 62ch; font-size: 16px; line-height: 1.5; }
+
+.situation__faits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; }
+
+.fait-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 11px 14px;
+  border: 1px solid var(--gris-ligne);
+  border-left: 3px solid var(--jaune-etoile);
+  border-radius: var(--rayon);
+  background: var(--blanc);
+}
+
+.fait-carte__valeur { font-size: 22px; font-weight: 750; color: var(--vert-fonce); }
+.fait-carte__libelle { font-size: 12px; color: var(--encre-douce); }
+
+/* --- Page 2 : causes --- */
+
+.causes-cartes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cause-carte {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--gris-ligne);
+  border-radius: var(--rayon);
+  background: var(--blanc);
+}
+
+.cause-carte__icone {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--vert-clair);
+  color: var(--vert-fonce);
+}
+
+.cause-carte__icone svg { width: 17px; height: 17px; fill: currentColor; }
+.cause-carte__corps { display: flex; flex-direction: column; gap: 3px; }
+.cause-carte__titre { font-size: 14.5px; font-weight: 700; }
+.cause-carte__texte { font-size: 13px; line-height: 1.45; color: var(--encre-douce); }
+
+/* --- Pagination --- */
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--gris-ligne);
+}
+
+.pager__bouton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 7px 14px;
+  border: 1px solid #9AA6AF;
+  border-radius: var(--rayon);
+  background: var(--blanc);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--encre);
+  cursor: pointer;
+}
+
+.pager__bouton:hover:not(:disabled) { border-color: var(--vert-moyen); background: var(--vert-clair); }
+.pager__bouton:disabled { opacity: 0.45; cursor: default; }
+.pager__compte { font-size: 12.5px; color: var(--encre-douce); }
+
+@media (max-width: 900px) {
+  .fiche-pager { grid-template-columns: 1fr; gap: 14px; }
+  .rail-fiche {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 0 0 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--gris-ligne);
+  }
+  .rail-fiche__etape { width: auto; white-space: nowrap; padding: 7px 10px; font-size: 12.5px; }
+  .page-fiche { min-height: 0; }
+  .situation { grid-template-columns: 1fr; gap: 18px; }
+  .jauge-score { width: 160px; height: 160px; margin: 0 auto; }
+  .jauge-score__centre { width: 124px; height: 124px; }
+  .jauge-score__valeur { font-size: 34px; }
+  .situation__faits { grid-template-columns: 1fr; }
+  .fiche-barre .actions-fiche { width: 100%; }
+}
+
+@media print {
+  .rail-fiche, .pager, .fiche-barre .actions-fiche { display: none !important; }
+  .fiche-pager { display: block; }
+  .page-fiche {
+    display: block !important;
+    min-height: 0 !important;
+    break-before: page;
+    padding: 0;
+  }
+  .page-fiche:first-of-type { break-before: auto; }
+  .jauge-score { width: 130px; height: 130px; }
+  .jauge-score__centre { width: 104px; height: 104px; }
 }

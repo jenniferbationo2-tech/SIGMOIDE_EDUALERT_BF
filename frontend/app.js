@@ -280,6 +280,15 @@ const application = createApp({
       pleinEcran: false,
       partageGraphiqueOuvert: false,
       lienGraphiqueCopie: false,
+      // Fiche region : une page a la fois, choisie dans le rail.
+      pageFiche: 0,
+      pagesFiche: [
+        { code: 'situation', titre: 'Situation' },
+        { code: 'causes', titre: 'Causes' },
+        { code: 'evolution', titre: 'Évolution' },
+        { code: 'indicateurs', titre: 'Indicateurs' },
+        { code: 'actions', titre: 'Actions' },
+      ],
       partageOuvert: false,
       lienCopie: false,
       carte: null,
@@ -349,6 +358,39 @@ const application = createApp({
     causesCourtes() {
       const actuel = this.fiche && this.fiche.risque_actuel;
       return this.facteursCourts(actuel ? actuel.facteurs : '');
+    },
+
+    /** Causes detaillees : titre court + une phrase d'explication. */
+    causesDetail() {
+      return this.causesCourtes.map((c) => ({
+        ...c,
+        explication: this.libelleFacteur(c.code),
+      }));
+    },
+
+    /** Rang de la region dans le classement de l'annee (1 = le plus expose). */
+    rangFiche() {
+      if (!this.fiche) return null;
+      const rang = this.classement.findIndex((r) => r.region_code === this.fiche.region_code);
+      return rang >= 0 ? rang + 1 : null;
+    },
+
+    /** Ecart du score a la moyenne des 13 regions. */
+    ecartMoyenne() {
+      if (!this.classement.length || !this.fiche) return 0;
+      const moyenne = this.classement.reduce((somme, r) => somme + r.score, 0) / this.classement.length;
+      return this.ficheScore - moyenne;
+    },
+
+    ecartMoyenneSigne() {
+      const ecart = this.ecartMoyenne;
+      const valeur = this.nombreFr(Math.abs(ecart), 1);
+      if (Math.abs(ecart) < 0.1) return '0,0';
+      return `${ecart > 0 ? '+' : '−'}${valeur}`;
+    },
+
+    nbIndicateursDefavorables() {
+      return this.indicateursCompares.filter((ind) => ind.defavorable).length;
     },
 
     /** Le classement, enrichi de la mini-courbe de chaque region. */
@@ -991,9 +1033,18 @@ const application = createApp({
       return this.estPrevision ? this.anneePrevision - 1 : this.annee;
     },
 
+    allerPage(index) {
+      this.pageFiche = Math.max(0, Math.min(this.pagesFiche.length - 1, index));
+    },
+
+    pageSuivante() { this.allerPage(this.pageFiche + 1); },
+
+    pagePrecedente() { this.allerPage(this.pageFiche - 1); },
+
     async ouvrirFiche(code) {
       try {
         this.ongletPrecedent = this.onglet;
+        this.pageFiche = 0;
         this.fiche = await this.json(`../regions/${code}/fiche`);
         this.mettreEnValeur(code);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1245,7 +1296,15 @@ const application = createApp({
         this.partageOuvert = false;
         this.partageGraphiqueOuvert = false;
         if (this.pleinEcran) this.basculerPleinEcran();
+        return;
       }
+      // Fleches : pages de la fiche, sauf dans un champ de saisie.
+      const cible = evenement.target;
+      const saisie = cible && (['INPUT', 'SELECT', 'TEXTAREA'].includes(cible.tagName)
+        || cible.isContentEditable);
+      if (!this.fiche || saisie) return;
+      if (evenement.key === 'ArrowRight') this.pageSuivante();
+      if (evenement.key === 'ArrowLeft') this.pagePrecedente();
     });
 
   },
