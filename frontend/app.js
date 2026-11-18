@@ -258,6 +258,10 @@ const application = createApp({
       onglet: 'carte',
       ongletPrecedent: 'carte',
       ordreNiveaux: ['critique', 'modere', 'faible'],
+      // Type de graphique choisi pour la courbe d'evolution (memorise).
+      typeGraphique: 'barres',
+      partageOuvert: false,
+      lienCopie: false,
       carte: null,
       coucheRegions: null,
       etiquettes: [],
@@ -346,6 +350,74 @@ const application = createApp({
         bloc.actions.forEach((texte) => cartes.push({ titre: bloc.libelle, texte }));
       });
       return cartes.map((carte, i) => ({ ...carte, num: i + 1 }));
+    },
+
+    /**
+     * Courbe d'evolution de la region, en coordonnees SVG 600 x 200.
+     * Meme echelle que la carte (0-100) : la lecture reste comparable.
+     */
+    courbeFiche() {
+      const serie = (this.fiche && this.fiche.historique_risque) || [];
+      if (!serie.length) return null;
+      const largeurTotale = 600;
+      const hauteurTotale = 200;
+      const zone = { x: 34, y: 12, largeur: largeurTotale - 34 - 14, hauteur: hauteurTotale - 12 - 30 };
+      const points = serie.map((h, i) => {
+        const x = zone.x + (zone.largeur * i) / Math.max(1, serie.length - 1);
+        const y = zone.y + zone.hauteur
+          - (Math.max(0, Math.min(100, h.score)) / 100) * zone.hauteur;
+        return {
+          x: +x.toFixed(1),
+          y: +y.toFixed(1),
+          annee: h.annee,
+          score: h.score,
+          niveau: h.niveau,
+          prevision: Boolean(h.est_prevision),
+        };
+      });
+      return {
+        points,
+        trace: points.map((p) => `${p.x},${p.y}`).join(' '),
+        dernier: points[points.length - 1],
+        avantDernier: points.length > 1 ? points[points.length - 2] : null,
+        zone,
+        grille: [0, 25, 50, 75, 100].map((v) => ({
+          v,
+          y: zone.y + zone.hauteur - (v / 100) * zone.hauteur,
+        })),
+      };
+    },
+
+    /** Adresse partagee : la fiche PDF si une region est ouverte, sinon la page. */
+    lienPartage() {
+      if (this.fiche) {
+        return new URL(`../regions/${this.fiche.region_code}/fiche.pdf`, window.location.href).href;
+      }
+      return `${window.location.origin}${window.location.pathname}`;
+    },
+
+    messagePartage() {
+      const sujet = this.fiche
+        ? `EduAlert BF — fiche ${this.fiche.region_nom}`
+        : `EduAlert BF — risque de décrochage scolaire ${this.annee}`;
+      const corps = this.fiche
+        ? `${this.fiche.region_nom} : score de risque ${this.nombreFr(this.ficheScore, 1)} sur 100, `
+          + `niveau ${this.libelleNiveau(this.ficheNiveau).toLowerCase()}.\n\nFiche : ${this.lienPartage}`
+        : `Carte et classement du risque de décrochage scolaire par région, ${this.annee}.`
+          + `\n\n${this.lienPartage}`;
+      return { sujet, corps };
+    },
+
+    lienGmail() {
+      const { sujet, corps } = this.messagePartage;
+      return 'https://mail.google.com/mail/?view=cm&fs=1'
+        + `&su=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+    },
+
+    lienOutlook() {
+      const { sujet, corps } = this.messagePartage;
+      return 'https://outlook.live.com/mail/0/deeplink/compose'
+        + `?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
     },
 
     /** Écart de score entre la région la plus et la moins exposée. */
@@ -628,7 +700,38 @@ const application = createApp({
       return valeurs.reduce((a, b) => a + b, 0) / valeurs.length;
     },
 
-    imprimer() { window.print(); },
+    /**
+     * Imprimer, c'est imprimer le PDF de la fiche, pas la page web : le
+     * navigateur ouvre le PDF dans un onglet, pret a sortir sur papier.
+     */
+    imprimer() {
+      if (!this.fiche) return;
+      const url = new URL(`../regions/${this.fiche.region_code}/fiche.pdf`,
+        window.location.href).href;
+      window.open(url, '_blank', 'noopener');
+    },
+
+    choisirGraphique(type) {
+      this.typeGraphique = type;
+      try { localStorage.setItem('edualert-graphique', type); } catch (e) { /* navigation privee */ }
+    },
+
+    basculerPartage() {
+      this.partageOuvert = !this.partageOuvert;
+      this.lienCopie = false;
+    },
+
+    fermerPartage() { this.partageOuvert = false; },
+
+    async copierLien() {
+      try {
+        await navigator.clipboard.writeText(this.lienPartage);
+        this.lienCopie = true;
+      } catch (e) {
+        // Navigateur sans presse-papiers : on selectionne l'adresse a la main.
+        this.lienCopie = false;
+      }
+    },
 
     ouvrirGlossaire() {
       const panneau = this.$refs.glossaire;
@@ -784,8 +887,8 @@ const application = createApp({
         },
       }).addTo(this.carte);
 
-      this.poserEtiquettes(parCode);
       this.cadrer();
+      this.poserEtiquettes(parCode);
     },
 
     /**
@@ -834,10 +937,23 @@ const application = createApp({
 
     cadrer() {
       if (!this.coucheRegions) return;
+      // Sans animation : la projection doit etre definitive avant que les
+      // etiquettes soient posees, sinon elles se decalent vers l'exterieur.
       this.carte.fitBounds(this.coucheRegions.getBounds(), {
         padding: [8, 8],
         maxZoom: 8,
+        animate: false,
       });
+    },
+
+    /** Re-pose les etiquettes apres un changement de taille de la carte. */
+    replacerEtiquettes() {
+      if (!this.carte || !this.coucheRegions) return;
+      this.etiquettes.forEach((e) => this.carte.removeLayer(e));
+      this.etiquettes = [];
+      const parCode = {};
+      this.classement.forEach((r) => { parCode[r.region_code] = r; });
+      this.poserEtiquettes(parCode);
     },
 
     async monte() {
@@ -850,6 +966,11 @@ const application = createApp({
         this.sante = sante;
         this.annees = annees;
         this.geojson = geojson;
+
+        try {
+          const choisi = localStorage.getItem('edualert-graphique');
+          if (['barres', 'courbe', 'tableau'].includes(choisi)) this.typeGraphique = choisi;
+        } catch (e) { /* navigation privee : on garde les barres */ }
 
         // Historique complet, pour les mini-courbes du classement. Son absence
         // ne doit pas empecher la carte de s'afficher.
@@ -889,11 +1010,33 @@ const application = createApp({
         } catch (e) { this.modele = {}; }
 
         await this.chargerAnnee();
-        this.$nextTick(() => {
-          if (this.carte) this.carte.invalidateSize({ pan: false });
+
+        // La hauteur du cadre depend de la fenetre : on remesure une fois la
+        // mise en page stabilisee, puis on redessine etiquettes comprises.
+        const recaler = () => {
+          if (!this.carte) return;
+          this.carte.invalidateSize({ pan: false });
           this.cadrer();
-        });
-        window.addEventListener('resize', () => this.cadrer());
+          this.replacerEtiquettes();
+        };
+        this.$nextTick(recaler);
+        window.addEventListener('resize', recaler);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(recaler);
+
+        // Une variation de la taille du cadre (en-tete, zoom navigateur,
+        // barre d'adresse mobile) laissait la carte rognee : on l'observe.
+        if ('ResizeObserver' in window) {
+          let derniere = '';
+          this._tailleObserver = new ResizeObserver(() => {
+            const el = document.getElementById('carte');
+            if (!el) return;
+            const taille = `${el.clientWidth}x${el.clientHeight}`;
+            if (taille === derniere) return;
+            derniere = taille;
+            recaler();
+          });
+          this._tailleObserver.observe(document.getElementById('carte'));
+        }
       } catch (e) {
         this.chargement = false;
         this.erreur = 'Impossible de contacter le service. Vérifiez qu\'il est démarré '
@@ -902,7 +1045,19 @@ const application = createApp({
     },
   },
 
-  mounted() { this.monte(); },
+  mounted() {
+    this.monte();
+
+    // Le menu de partage se ferme au clic exterieur et sur Echap.
+    document.addEventListener('click', (evenement) => {
+      if (this.partageOuvert && !evenement.target.closest('.partage')) {
+        this.partageOuvert = false;
+      }
+    });
+    document.addEventListener('keydown', (evenement) => {
+      if (evenement.key === 'Escape') this.partageOuvert = false;
+    });
+  },
 });
 application.component('pastille-aide', PastilleAide);
 application.mount('#application');

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>EduAlert BF — Alerte précoce sur le décrochage scolaire au primaire</title>
   <meta name="description"
-        content="Score de risque de décrochage scolaire au primaire, par région du Burkina Faso, 2017-2026. Prototype du Data Challenge Burkina 2026.">
+        content="Carte et classement du risque de décrochage scolaire au primaire, par région du Burkina Faso, 2017-2026. Indice de 0 à 100, fiche par région.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='8' fill='%23EF2B2D'/><rect y='8' width='16' height='8' fill='%23009E49'/><circle cx='8' cy='8' r='3' fill='%23FCD116'/></svg>">
   <link rel="stylesheet" href="vendor/leaflet.css">
   <link rel="stylesheet" href="style.css">
@@ -16,25 +16,54 @@
   <!-- 1. Bande tricolore + en-tête ------------------------------------ -->
   <div class="bande-enveloppe">
     <div class="bande-nationale" role="presentation"></div>
-    <span class="bande-nationale__etoile" aria-hidden="true">★</span>
   </div>
 
   <header class="entete">
     <div class="entete__interieur">
-      <div>
-        <h1>EduAlert BF</h1>
-        <p class="entete__sous-titre">
-          Alerte précoce sur le décrochage scolaire au primaire, par région
-        </p>
+      <div class="entete__marque">
+        <svg class="drapeau" viewBox="0 0 90 60" role="img" aria-label="Drapeau du Burkina Faso">
+          <rect width="90" height="30" fill="#EF2B2D"></rect>
+          <rect y="30" width="90" height="30" fill="#009E49"></rect>
+          <path fill="#FCD116"
+                d="M45 18 47.82 26.12 56.41 26.29 49.57 31.48 52.05 39.71 45 34.8 37.95 39.71 40.43 31.48 33.59 26.29 42.18 26.12Z"></path>
+        </svg>
+        <div>
+          <h1>EduAlert BF</h1>
+          <p class="entete__sous-titre">
+            Alerte précoce sur le décrochage scolaire au primaire, par région
+          </p>
+        </div>
       </div>
       <div class="entete__mentions">
-        <span class="etiquette etiquette--source" v-if="sante.source_risque">
-          {{ sante.source_risque === 'reel' ? 'Données réelles' : 'Données d\'exemple' }}
-        </span>
-        <span class="entete__source-detail">DGESS / MENAPLN · 2016-2025</span>
-        <span class="etiquette etiquette--prototype">
-          Prototype – Data Challenge Burkina 2026 · Édition Éducation
-        </span>
+        <div class="entete__ligne">
+          <span class="etiquette etiquette--source" v-if="sante.source_risque">
+            {{ sante.source_risque === 'reel' ? 'Données réelles' : 'Données d\'exemple' }}
+          </span>
+          <span class="entete__source-detail">DGESS / MENAPLN · 2016-2025</span>
+          <span class="etiquette etiquette--prototype">Aide à la décision · Édition 2026</span>
+        </div>
+
+        <div class="partage">
+          <button type="button" class="bouton-partage"
+                  :aria-expanded="partageOuvert ? 'true' : 'false'"
+                  aria-haspopup="menu"
+                  @click.stop="basculerPartage">
+            <svg class="bouton-partage__icone" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M11.2 1.6a2.6 2.6 0 1 0 1.1 5.1L7.6 9.3a2.6 2.6 0 1 0 0 1.4l4.7 2.6a2.6 2.6 0 1 0 .6-1.1L8.2 9.6a2.6 2.6 0 0 0 0-1.4l4.7-2.6a2.6 2.6 0 0 0-1.7-4z"></path>
+            </svg>
+            Partager
+          </button>
+          <div v-if="partageOuvert" class="partage__menu" role="menu" aria-label="Partager par">
+            <a class="partage__item" role="menuitem" :href="lienGmail"
+               target="_blank" rel="noopener" @click="fermerPartage">Gmail</a>
+            <a class="partage__item" role="menuitem" :href="lienOutlook"
+               target="_blank" rel="noopener" @click="fermerPartage">Outlook</a>
+            <button type="button" class="partage__item" role="menuitem" @click="copierLien">
+              Copier le lien
+            </button>
+            <p class="partage__etat" v-if="lienCopie" role="status">Lien copié.</p>
+          </div>
+        </div>
       </div>
     </div>
   </header>
@@ -328,7 +357,7 @@
             </div>
             <div class="actions-fiche">
               <a class="bouton bouton--principal"
-                 :href="'../regions/' + fiche.region_code + '/fiche.pdf'">
+                 :href="'../regions/' + fiche.region_code + '/fiche.pdf'" download>
                 Télécharger (PDF)
               </a>
               <button type="button" class="bouton bouton--secondaire" @click="imprimer">
@@ -358,9 +387,23 @@
               </span>
             </div>
 
-            <h3 class="titre-sous-section">Évolution du score</h3>
+            <div class="titre-graphique">
+              <h3 class="titre-sous-section">Évolution du score</h3>
+              <div class="choix-graphique" role="group" aria-label="Type de graphique">
+                <button type="button" :aria-pressed="typeGraphique === 'barres' ? 'true' : 'false'"
+                        :class="{ 'est-actif': typeGraphique === 'barres' }"
+                        @click="choisirGraphique('barres')">Barres</button>
+                <button type="button" :aria-pressed="typeGraphique === 'courbe' ? 'true' : 'false'"
+                        :class="{ 'est-actif': typeGraphique === 'courbe' }"
+                        @click="choisirGraphique('courbe')">Courbe</button>
+                <button type="button" :aria-pressed="typeGraphique === 'tableau' ? 'true' : 'false'"
+                        :class="{ 'est-actif': typeGraphique === 'tableau' }"
+                        @click="choisirGraphique('tableau')">Tableau</button>
+              </div>
+            </div>
+
             <div class="graphique">
-              <div class="barre-annees">
+              <div class="barre-annees" v-if="typeGraphique === 'barres'">
                 <div class="annee-colonne" v-for="h in fiche.historique_risque" :key="h.annee">
                   <span class="annee-score" :class="'texte--' + classeNiveau(h.niveau)">
                     {{ Math.round(h.score) }}
@@ -376,8 +419,64 @@
                   </span>
                 </div>
               </div>
-              <p class="note-graphique">
+
+              <svg v-else-if="typeGraphique === 'courbe' && courbeFiche" class="courbe-annees"
+                   viewBox="0 0 600 200" role="img"
+                   :aria-label="'Score de risque de ' + fiche.region_nom + ' par année'">
+                <g class="courbe-annees__grille">
+                  <line v-for="g in courbeFiche.grille" :key="g.v"
+                        :x1="courbeFiche.zone.x" :x2="courbeFiche.zone.x + courbeFiche.zone.largeur"
+                        :y1="g.y" :y2="g.y"></line>
+                  <text v-for="g in courbeFiche.grille" :key="'v' + g.v"
+                        :x="courbeFiche.zone.x - 7" :y="g.y + 3" text-anchor="end">{{ g.v }}</text>
+                </g>
+                <polyline class="courbe-annees__ligne" :points="courbeFiche.trace"></polyline>
+                <line v-if="courbeFiche.avantDernier" class="courbe-annees__prevision"
+                      :x1="courbeFiche.avantDernier.x" :y1="courbeFiche.avantDernier.y"
+                      :x2="courbeFiche.dernier.x" :y2="courbeFiche.dernier.y"></line>
+                <circle v-for="p in courbeFiche.points" :key="'p' + p.annee"
+                        :cx="p.x" :cy="p.y" r="3.6" :fill="couleurNiveau(p.niveau)"
+                        :stroke="p.prevision ? '#2B333B' : '#FFFFFF'" stroke-width="1.6">
+                  <title>{{ p.annee }} : {{ nombreFr(p.score, 1) }}</title>
+                </circle>
+                <g class="courbe-annees__annees">
+                  <text v-for="(p, i) in courbeFiche.points" :key="'a' + p.annee"
+                        v-show="i % 2 === 0 || i === courbeFiche.points.length - 1"
+                        :x="p.x" :y="196" text-anchor="middle">{{ String(p.annee).slice(2) }}</text>
+                </g>
+              </svg>
+
+              <table v-else class="tableau-evolution">
+                <caption class="hors-ecran">Scores de la région par année</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Année</th>
+                    <th scope="col" class="col-nombre">Score</th>
+                    <th scope="col">Niveau</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="h in fiche.historique_risque" :key="h.annee">
+                    <td>
+                      {{ h.annee }}
+                      <span v-if="h.est_prevision" class="petit">prévision</span>
+                    </td>
+                    <td class="col-nombre"><strong>{{ nombreFr(h.score, 1) }}</strong></td>
+                    <td>
+                      <span class="pastille pastille--menue"
+                            :class="'pastille--' + classeNiveau(h.niveau)">
+                        {{ libelleNiveau(h.niveau) }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <p class="note-graphique" v-if="typeGraphique === 'barres'">
                 Barre pleine : année observée. Contour en pointillés : prévision.
+              </p>
+              <p class="note-graphique" v-else-if="typeGraphique === 'courbe'">
+                Trait plein : année observée. Pointillés : prévision.
               </p>
             </div>
           </div>
@@ -481,8 +580,8 @@
   <footer class="pied">
     <div class="pied__interieur">
       <p><strong>Sources</strong> · DGESS / MENAPLN, 2016-2025 · contours OCHA / IGB (COD-AB)</p>
-      <p><strong>Prototype</strong> · Data Challenge Burkina 2026, Défi 1. Site non
-         officiel, n'engage aucune administration.</p>
+      <p><strong>Édition 2026</strong> · outil d'aide à la décision ; il ne se
+         substitue pas aux statistiques officielles et n'engage aucune administration.</p>
       <p class="pied__liens">
         Équipe AB7C-938F-79BB
         <span aria-hidden="true">·</span>
